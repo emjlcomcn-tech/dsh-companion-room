@@ -1,0 +1,1241 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>角色小屋</title>
+<style>
+:root{
+  --bg:#f4ede4; --panel:#fffaf4; --ink:#3b2f2a; --muted:#8a7a70; --line:#eadfd3; --chip:#f1e6da;
+  --accent:#4f7cac; --warn:#d0645a; --ok:#6aa57a; --scene-top:#f9e7d2; --scene-bot:#efd9c1;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1d1a22; --panel:#26222c; --ink:#ece4dc; --muted:#a59a92; --line:#3a3440; --chip:#332d39;
+    --accent:#8fb4dc; --warn:#e57d73; --ok:#82c194; --scene-top:#2a2533; --scene-bot:#211d28;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1d1a22; --panel:#26222c; --ink:#ece4dc; --muted:#a59a92; --line:#3a3440; --chip:#332d39;
+  --accent:#8fb4dc; --warn:#e57d73; --ok:#82c194; --scene-top:#2a2533; --scene-bot:#211d28;
+}
+body.cyber{--scene-top:#1a1030;--scene-bot:#0d0a1a;--bg:#120d20;--panel:#1b1530;--ink:#ece6ff;--muted:#9d93c0;--line:#2f2650;--chip:#2a2148;--accent:#00d9ff}
+body.cyber .hud .title{color:#e9e4ff;text-shadow:0 0 8px #ff3fd0,0 0 18px #7a3cff}
+body.cyber .hud .clock{color:#7fe9ff}
+.neonpulse{animation:np 3.2s ease-in-out infinite}
+@keyframes np{0%,100%{opacity:1}50%{opacity:.72}}
+.rain{animation:rain 1.1s linear infinite}
+@keyframes rain{from{transform:translate(0,-6px)}to{transform:translate(-3px,8px)}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.6 "PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 380px;min-height:100vh}
+.scene{position:relative;background:linear-gradient(180deg,var(--scene-top),var(--scene-bot));overflow:hidden;min-height:60vh}
+.scene svg{display:block;width:100%;height:100%;position:absolute;inset:0}
+.hud{position:absolute;left:16px;top:14px;right:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;pointer-events:none;z-index:3}
+.hud .title{font-size:20px;font-weight:700;letter-spacing:.5px}
+.hud .clock{font-variant-numeric:tabular-nums;color:var(--muted)}
+.hud .now{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px 12px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.panel{background:var(--panel);border-left:1px solid var(--line);padding:18px 18px 28px;overflow:auto;max-height:100vh}
+.card{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:12px;background:color-mix(in srgb,var(--panel) 92%,var(--bg))}
+.card h3{margin:0 0 8px;font-size:13px;color:var(--muted);font-weight:600;letter-spacing:.5px}
+.doing{display:flex;gap:10px;align-items:center}
+.doing .emo{font-size:28px;line-height:1}
+.doing .lbl{font-weight:700;font-size:16px}
+.doing .sub{color:var(--muted);font-size:12px}
+.thought{font-size:16px;line-height:1.7;padding:2px 0 4px}
+.thought:before{content:"“";color:var(--accent);font-size:22px;margin-right:2px}
+.thought:after{content:"”";color:var(--accent);font-size:22px;margin-left:2px}
+.meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.chip{background:var(--chip);border-radius:999px;padding:1px 9px;font-size:12px;color:var(--ink)}
+.chip.tell{background:color-mix(in srgb,var(--accent) 22%,var(--chip))}
+.chip.dream{background:color-mix(in srgb,#9b7fd1 25%,var(--chip))}
+.needs{display:grid;grid-template-columns:52px 1fr 30px;gap:6px 8px;align-items:center;font-size:13px}
+.bar{height:8px;border-radius:999px;background:var(--chip);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:999px;background:var(--ok);transition:width .6s}
+.bar i.mid{background:#d9a441}.bar i.low{background:var(--warn)}
+.num{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.list{list-style:none;margin:0;padding:0}
+.list li{padding:8px 0;border-top:1px dashed var(--line)}
+.list li:first-child{border-top:0;padding-top:0}
+.list .t{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;margin-right:6px}
+.btn{appearance:none;border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:999px;padding:5px 14px;font:inherit;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.err{color:var(--warn);font-size:12px;margin-top:6px}
+.small{font-size:12px;color:var(--muted)}
+#overlay{position:absolute;inset:0;pointer-events:none;z-index:2}
+.scene:after{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;background:radial-gradient(ellipse at 50% 45%,rgba(0,0,0,0) 55%,rgba(40,20,10,.16) 100%)}
+body.cyber .scene:after{background:radial-gradient(ellipse at 50% 45%,rgba(0,0,0,0) 50%,rgba(5,0,20,.55) 100%)}
+#particles{position:absolute;inset:0;pointer-events:none;z-index:1;overflow:hidden}
+#particles i{position:absolute;width:3px;height:3px;border-radius:50%;background:#7fe9ff;box-shadow:0 0 6px #7fe9ff;opacity:0;animation:drift 9s linear infinite}
+#particles i:nth-child(3n){background:#ff7ae0;box-shadow:0 0 6px #ff7ae0}
+@keyframes drift{0%{opacity:0;transform:translateY(0)}15%{opacity:.7}85%{opacity:.5}100%{opacity:0;transform:translateY(-120px)}}
+.holo{animation:holo 3s ease-in-out infinite}
+@keyframes holo{0%,100%{opacity:.85;transform:translateY(0)}50%{opacity:.55;transform:translateY(-3px)}}
+body.cyber #avatar{filter:drop-shadow(0 0 5px rgba(120,210,255,.45))}
+#avatar{filter:drop-shadow(0 3px 3px rgba(60,30,10,.18))}
+.bubble{position:absolute;transform:translate(-50%,-100%);background:#fff;color:#3b2f2a;border-radius:14px;padding:6px 10px;font-size:13px;line-height:1.45;max-width:220px;box-shadow:0 4px 14px rgba(0,0,0,.15);transition:opacity .4s}
+.bubble.cloud{border-radius:18px;background:#fffdf8;border:1px solid #eadfd3}
+.bubble.cloud:after{content:"";position:absolute;left:46%;bottom:-14px;width:10px;height:10px;border-radius:50%;background:#fffdf8;border:1px solid #eadfd3}
+.bubble.cloud:before{content:"";position:absolute;left:52%;bottom:-24px;width:6px;height:6px;border-radius:50%;background:#fffdf8;border:1px solid #eadfd3}
+.tag{position:absolute;transform:translate(-50%,-100%);font-size:20px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.2))}
+.zzz{position:absolute;font-weight:700;color:#6f86b8;animation:zz 2.6s infinite ease-out;font-size:16px}
+@keyframes zz{0%{opacity:0;transform:translate(0,0) scale(.8)}30%{opacity:1}100%{opacity:0;transform:translate(18px,-34px) scale(1.2)}}
+.bob{animation:bob 2.4s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+.breathe{animation:br 3.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes br{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
+.flame{animation:fl .5s infinite alternate}
+@keyframes fl{from{opacity:.6}to{opacity:1}}
+/* 截图模式：只要场景 + 一张信息卡，发群 / 发说说用 */
+body.share .wrap{display:block}
+body.share .panel{display:none}
+body.share .scene{height:100vh;min-height:0}
+body.share .hud .now{display:none}
+body.share .hud .title{font-size:24px}
+.sharecard{display:none;position:absolute;left:18px;bottom:16px;z-index:4;background:rgba(255,250,244,.94);color:#3b2f2a;border-radius:16px;padding:12px 16px;box-shadow:0 6px 20px rgba(0,0,0,.18);max-width:430px}
+body.share .sharecard{display:block}
+.sharecard .big{font-size:18px;font-weight:700}
+.sharecard .sm{font-size:13px;color:#8a7a70;margin-top:2px}
+.sharecard .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.sharecard .chips span{background:#f1e6da;border-radius:999px;padding:1px 9px;font-size:12px}
+.sharecard .th{margin-top:8px;font-size:14px;line-height:1.6}
+@media (max-width: 900px){
+  .wrap{grid-template-columns:1fr}
+  .scene{min-height:0;height:calc(100vw * .8 + 56px);padding-top:56px}
+  .scene svg{top:56px;height:calc(100% - 56px)}
+  .hud{top:10px}
+  .bubble{font-size:12px;max-width:170px;padding:4px 8px}
+  .hud .now{display:none}
+  .panel{border-left:0;border-top:1px solid var(--line);max-height:none;padding:16px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="scene" id="scene">
+    <div class="hud">
+      <span class="title" id="houseTitle">角色小屋</span>
+      <span class="clock" id="clock">--:--</span>
+      <span class="now" id="hudNow">……</span>
+    </div>
+    <svg id="svg" preserveAspectRatio="xMidYMid meet"></svg>
+    <div id="particles"></div>
+    <div id="overlay"></div>
+    <div class="sharecard" id="sharecard"></div>
+  </div>
+  <aside class="panel">
+    <div class="card">
+      <h3>现在</h3>
+      <div class="doing"><span class="emo" id="emo">🐋</span><div><div class="lbl" id="lbl">……</div><div class="sub" id="sub"></div></div></div>
+      <div class="meta" id="feel"></div>
+    </div>
+    <div class="card">
+      <div class="row"><h3 style="margin:0">心里在想</h3><button class="btn" id="thinkBtn">让她现在想一下</button></div>
+      <div id="latest" style="margin-top:8px"></div>
+      <div class="err" id="err"></div>
+    </div>
+    <div class="card">
+      <h3>身体</h3>
+      <div class="needs" id="needs"></div>
+    </div>
+    <div class="card">
+      <h3>想法时间线</h3>
+      <ul class="list" id="thoughts"></ul>
+    </div>
+    <div class="card">
+      <h3>今天做了什么</h3>
+      <ul class="list" id="log"></ul>
+    </div>
+    <div class="small" id="foot"></div>
+    <div class="small" style="margin-top:6px">换个样子看：<a href="?theme=cozy" style="color:var(--accent)">暖色小屋</a> · <a href="?theme=cyber" style="color:var(--accent)">赛博夜城</a>（只换你这边看到的；默认用哪个在 xiaoqian-life.json 的 theme 里改）</div>
+  </aside>
+</div>
+<script>
+const SHARE = new URLSearchParams(location.search).has('share')
+if (SHARE) document.body.classList.add('share')
+const TW = 64, TH = 32, TZ = 40, WALL = 4.6
+const NS = 'http://www.w3.org/2000/svg'
+// ---------- 主题：cozy 是原来的暖色小屋；cyber 是赛博朋克夜城公寓（深色墙、霓虹灯带、窗外是城市天际线）
+let THEME = 'cozy'
+const CYBER = {
+  '#f1e6d8': '#2a2440', '#e4d6c5': '#211c35', '#f4e1dc': '#2b2244', '#ead2cc': '#231b3a', '#c9ad8f': '#141120', '#bea285': '#110e1b',
+  '#d8c3aa': '#3b3159', '#cdb69c': '#30284c', '#d9ebef': '#1d2f3c', '#b89a7c': '#191524', '#9f8166': '#100d18', '#efe4d6': '#2e2746',
+  '#d9b48a': '#1d1a28', '#e3c9a3': '#1b1926', '#cfe3e8': '#21303a', '#ead9c0': '#211e2c',
+  '#a8794f': '#1c1a25', '#fbf7f0': '#cfcbe0', '#ffffff': '#d6d4e4', '#9cc3e6': '#6a3ea6', '#b98b5e': '#24212f', '#f0e2c0': '#3a3550',
+  '#ffe7b0': '#ff7ae0', '#d9c39a': '#3a3550', '#7a9ec0': '#3b2f60', '#7aa6c2': '#c9ccd8', '#f2c6a0': '#00b8e6', '#8f6a48': '#1a1723',
+  '#9c7148': '#201c2b', '#c98b8b': '#6f6c80', '#e9eef2': '#a9adbf', '#d7d2c8': '#363443', '#b68657': '#282433', '#c99a6b': '#3b2f60',
+  '#d9e4e8': '#47525e', '#f4f7f8': '#8b93a3', '#fdfdfd': '#c8c6d6', '#f3f6f7': '#b9b7c9', '#c4785a': '#2a2433', '#e7e1d6': '#2a2433',
+  '#f4f6f8': '#9aa0b2', '#f3d7a4': '#6a1424', '#f0a46e': '#ff3fae', '#f6bd8f': '#ff7ac8', '#f2b8c6': '#3a1d4e', '#e9b44c': '#00e5ff',
+  '#fff4cc': '#b8f6ff', '#fff1cf': '#ff9ff0', '#e85d5d': '#ff4f8b', '#f2b632': '#ffd23f', '#e05d5d': '#ff3fae', '#7d8a96': '#4b5566',
+  '#fdf6ec': '#160f28', '#c9a27c': '#ff3fd0', '#bfe0f2': '#1b1440', '#6aa8de': '#00e5ff', '#3d6fa8': '#7a3cff', '#e9a9b4': '#3a1d5e',
+  '#9cbfd8': '#1f2f5e', '#8a6a4a': '#5a5370', '#fffdf7': '#1a1530', '#f2a7b5': '#ff4fb8', '#a7d3f2': '#38e1ff', '#b9c4c8': '#6a6f85',
+  '#e7a8a1': '#3a1d5e', '#444': '#222', '#2b2f3a': '#0e0d16', '#3a4256': '#14122a', '#e8e8e8': '#5c5873', '#f3eee6': '#cfcbe0',
+}
+const tc = (c) => (THEME === 'cyber' && typeof c === 'string' && CYBER[c.toLowerCase()]) || c
+const P = (x, y, z = 0) => [(x - y) * TW / 2, (x + y) * TH / 2 - z * TZ]
+const pts = (arr) => arr.map((p) => p.join(',')).join(' ')
+const shade = (hex, f) => {
+  let r, g, b
+  const m0 = String(hex).match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/)
+  if (m0) { r = +m0[1]; g = +m0[2]; b = +m0[3] }
+  else { let h = String(hex).replace('#', ''); if (h.length === 3) h = h.split('').map((c) => c + c).join(''); const n = parseInt(h, 16); r = n >> 16; g = (n >> 8) & 255; b = n & 255 }
+  const m = (c) => Math.max(0, Math.min(255, Math.round(f >= 0 ? c + (255 - c) * f : c * (1 + f))))
+  return `rgb(${m(r)},${m(g)},${m(b)})`
+}
+let L = null, S = null
+const svg = document.getElementById('svg')
+const overlay = document.getElementById('overlay')
+const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, k === 'fill' || k === 'stroke' ? tc(v) : v); if (parent) parent.appendChild(e); return e }
+
+// ---------- 立方体（只画看得见的三个面）
+function box(g, x, y, z, w, d, h, color, opts = {}) {
+  color = tc(color)
+  const top = [P(x, y, z + h), P(x + w, y, z + h), P(x + w, y + d, z + h), P(x, y + d, z + h)]
+  const south = [P(x, y + d, z), P(x + w, y + d, z), P(x + w, y + d, z + h), P(x, y + d, z + h)]
+  const east = [P(x + w, y, z), P(x + w, y + d, z), P(x + w, y + d, z + h), P(x + w, y, z + h)]
+  const st = opts.stroke || 'rgba(60,40,30,.25)'
+  if (h > 0) {
+    el('polygon', { points: pts(south), fill: shade(color, -0.12), stroke: st, 'stroke-width': .6 }, g)
+    el('polygon', { points: pts(east), fill: shade(color, -0.26), stroke: st, 'stroke-width': .6 }, g)
+  }
+  el('polygon', { points: pts(top), fill: opts.topFill || shade(color, 0.06), stroke: st, 'stroke-width': .6 }, g)
+  if (h > 0.04 && (w > 0.12 || d > 0.12) && !opts.noRim) {
+    const rim = THEME === 'cyber' ? 'rgba(150,225,255,.32)' : 'rgba(255,255,255,.35)'
+    el('polyline', { points: pts([P(x, y + d, z + h), P(x + w, y + d, z + h), P(x + w, y, z + h)]), fill: 'none', stroke: rim, 'stroke-width': .9 }, g)
+    el('line', { x1: P(x + w, y + d, z)[0], y1: P(x + w, y + d, z)[1], x2: P(x + w, y + d, z + h)[0], y2: P(x + w, y + d, z + h)[1], stroke: rim, 'stroke-width': .6, opacity: .6 }, g)
+  }
+  return { top, south, east }
+}
+
+// ---------- 场景
+let items = [] // {key, g}
+let objLayer, lightLayer, nightRect, avatarG, blanketItem
+const S0 = { x: 8.5, y: 2.4, z: 0 }
+let pos = { ...S0 }, path = [], lastSpotKey = ''
+
+function skyColors(h) {
+  if (THEME === 'cyber') {
+    if (h >= 7 && h < 16) return ['#e39a86', '#f6c9a8'] // 雾霾的白天
+    if (h >= 16 && h < 19) return ['#b0507a', '#f08a6a']
+    return ['#0f0a2a', '#3b1a63']
+  }
+  if (h >= 6 && h < 16) return ['#9fd3f5', '#d8f0ff']
+  if (h >= 16 && h < 19) return ['#f6b38a', '#ffe1b8']
+  if (h >= 19 && h < 20) return ['#6c6fae', '#c39bb8']
+  return ['#1b2350', '#34407a']
+}
+function nightAlpha(h, m) {
+  const t = h + m / 60
+  if (THEME === 'cyber') return t >= 7 && t < 17 ? 0.1 : t >= 17 && t < 19.5 ? 0.1 + (t - 17) / 2.5 * 0.2 : 0.3
+  if (t >= 6.5 && t < 17.5) return 0
+  if (t >= 17.5 && t < 20) return (t - 17.5) / 2.5 * 0.42
+  if (t >= 5 && t < 6.5) return (6.5 - t) / 1.5 * 0.42
+  return 0.42
+}
+
+// 一片城市天际线（画在任意一块竖直的面上：at(fu, fv) 把 0..1 的坐标映射到屏幕）
+function drawCity(group, at, seedIn, opts = {}) {
+  let seed = seedIn; const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280 }
+  const city = el('g', {}, group)
+  const span = opts.span || 1
+  let u = 0
+  while (u < 1) { const bw = (.05 + rnd() * .08) / span, bh = .45 + rnd() * .35; const u1 = Math.min(1, u + bw); el('polygon', { points: pts([at(u, 0), at(u1, 0), at(u1, bh), at(u, bh)]), fill: '#2c1f52', opacity: .85 }, city); u = u1 }
+  u = 0
+  while (u < 1) {
+    const bw = (.06 + rnd() * .09) / span, bh = .25 + rnd() * .45, u1 = Math.min(1, u + bw)
+    el('polygon', { points: pts([at(u, 0), at(u1, 0), at(u1, bh), at(u, bh)]), fill: '#0f0b1e' }, city)
+    if (rnd() < .3) { const a = at(u + (u1 - u) * .5, bh), b = at(u + (u1 - u) * .5, bh + .06); el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: '#0f0b1e', 'stroke-width': 1.5 }, city) }
+    for (let k = 0; k < 10; k++) { if (rnd() < .45) continue; const c = at(u + rnd() * (u1 - u), rnd() * bh * .9); el('rect', { x: c[0] - .8, y: c[1] - .8, width: 1.6, height: 1.6, fill: rnd() < .55 ? '#ffd86b' : '#7fe9ff', class: 'cityLit' }, city) }
+    if (rnd() < .3) { const c = at(u + .01, bh * (.5 + rnd() * .3)); el('rect', { x: c[0], y: c[1], width: 6, height: 2.8, fill: rnd() < .5 ? '#ff3fd0' : '#00e5ff', filter: 'url(#neon)', class: 'neonpulse' }, city) }
+    u = u1
+  }
+  if (opts.moon) { const c = at(opts.moon[0], opts.moon[1]); el('circle', { cx: c[0], cy: c[1], r: 7, fill: '#ffe9c4', opacity: .95, class: 'moon' }, city) }
+  if (opts.rain) { const rain = el('g', { class: 'rain' }, group); for (let k = 0; k < opts.rain; k++) { const c = at(rnd(), .1 + rnd() * .85); el('line', { x1: c[0], y1: c[1], x2: c[0] - 1.5, y2: c[1] + 5, stroke: '#b8d8ff', 'stroke-width': .7, opacity: .5 }, rain) } }
+  return city
+}
+
+function buildScene() {
+  svg.innerHTML = ''
+  svg.setAttribute('viewBox', '-345 -218 750 590')
+  const defs = el('defs', {}, svg)
+  const sky = el('linearGradient', { id: 'sky', x1: 0, y1: 0, x2: 0, y2: 1 }, defs)
+  el('stop', { offset: '0', 'stop-color': '#9fd3f5', id: 'sky0' }, sky)
+  el('stop', { offset: '1', 'stop-color': '#d8f0ff', id: 'sky1' }, sky)
+  const nf = el('filter', { id: 'neon', x: '-50%', y: '-50%', width: '200%', height: '200%' }, defs)
+  el('feGaussianBlur', { stdDeviation: 2.6, result: 'b' }, nf)
+  const mg = el('feMerge', {}, nf); el('feMergeNode', { in: 'b' }, mg); el('feMergeNode', { in: 'b' }, mg); el('feMergeNode', { in: 'SourceGraphic' }, mg)
+  const sf = el('filter', { id: 'soft', x: '-50%', y: '-50%', width: '200%', height: '200%' }, defs)
+  el('feGaussianBlur', { stdDeviation: 3.5 }, sf)
+  const tv = el('linearGradient', { id: 'tvgrad', x1: 0, y1: 0, x2: 1, y2: 1 }, defs)
+  el('stop', { offset: '0', 'stop-color': THEME === 'cyber' ? '#2a1460' : '#2a2f3a' }, tv)
+  el('stop', { offset: '.6', 'stop-color': THEME === 'cyber' ? '#7a3cff' : '#3a4256' }, tv)
+  el('stop', { offset: '1', 'stop-color': THEME === 'cyber' ? '#ff3fd0' : '#4a5468' }, tv)
+  const cone = el('linearGradient', { id: 'cone', x1: 0, y1: 0, x2: 0, y2: 1 }, defs)
+  el('stop', { offset: '0', 'stop-color': THEME === 'cyber' ? 'rgba(127,233,255,.35)' : 'rgba(255,224,150,.4)' }, cone)
+  el('stop', { offset: '1', 'stop-color': THEME === 'cyber' ? 'rgba(127,233,255,0)' : 'rgba(255,224,150,0)' }, cone)
+  const holo = el('linearGradient', { id: 'holograd', x1: 0, y1: 1, x2: 0, y2: 0 }, defs)
+  el('stop', { offset: '0', 'stop-color': 'rgba(0,229,255,.55)' }, holo)
+  el('stop', { offset: '1', 'stop-color': 'rgba(0,229,255,0)' }, holo)
+  const glow = el('radialGradient', { id: 'glow' }, defs)
+  el('stop', { offset: '0', 'stop-color': THEME === 'cyber' ? 'rgba(255,90,220,.6)' : 'rgba(255,214,140,.75)' }, glow)
+  el('stop', { offset: '1', 'stop-color': 'rgba(255,214,140,0)' }, glow)
+  const scr = el('radialGradient', { id: 'scr' }, defs)
+  el('stop', { offset: '0', 'stop-color': 'rgba(150,210,255,.55)' }, scr)
+  el('stop', { offset: '1', 'stop-color': 'rgba(150,210,255,0)' }, scr)
+
+  // 地板
+  const base = el('g', {}, svg)
+  el('polygon', { points: pts([P(0, 0, -0.25), P(12, 0, -0.25), P(12, 10, -0.25), P(0, 10, -0.25)]), fill: 'rgba(0,0,0,.07)' }, base)
+  for (const r of L.rooms) {
+    if (r.z) continue // 二楼另外画
+    el('polygon', { points: pts([P(r.x, r.y), P(r.x + r.w, r.y), P(r.x + r.w, r.y + r.d), P(r.x, r.y + r.d)]), fill: r.floor, stroke: 'rgba(80,50,30,.18)' }, base)
+    // 地板纹
+    for (let i = 1; i < (r.id === 'bath' ? r.w * 2 : r.w); i++) {
+      const xx = r.x + (r.id === 'bath' ? i / 2 : i)
+      el('line', { x1: P(xx, r.y)[0], y1: P(xx, r.y)[1], x2: P(xx, r.y + r.d)[0], y2: P(xx, r.y + r.d)[1], stroke: 'rgba(80,50,30,.07)' }, base)
+    }
+    if (r.id === 'bath') for (let j = 1; j < r.d * 2; j++) {
+      const yy = r.y + j / 2
+      el('line', { x1: P(r.x, yy)[0], y1: P(r.x, yy)[1], x2: P(r.x + r.w, yy)[0], y2: P(r.x + r.w, yy)[1], stroke: 'rgba(80,50,30,.07)' }, base)
+    }
+    if (r.id === 'dining') for (let i = 0; i < r.w * 2; i++) for (let j = 0; j < r.d * 2; j++) if ((i + j) % 2) {
+      const x0 = r.x + i / 2, y0 = r.y + j / 2
+      el('polygon', { points: pts([P(x0, y0), P(x0 + .5, y0), P(x0 + .5, y0 + .5), P(x0, y0 + .5)]), fill: 'rgba(120,90,60,.08)' }, base)
+    }
+    const c = P(r.x + r.w - 0.9, r.y + r.d - 0.5)
+    el('text', { x: c[0], y: c[1], 'font-size': 11, fill: THEME === 'cyber' ? 'rgba(220,210,255,.4)' : 'rgba(70,50,40,.45)', 'text-anchor': 'middle' }, base).textContent = r.name
+  }
+  if (L.loft) { const lf = L.loft; el('polygon', { points: pts([P(lf.x, lf.y), P(lf.x + lf.w, lf.y), P(lf.x + lf.w, lf.y + lf.d), P(lf.x, lf.y + lf.d)]), fill: '#000', opacity: .1 }, base) }
+  // 地台（整栋小屋像放在一块厚板上）
+  const slab = el('g', {}, svg)
+  el('polygon', { points: pts([P(0, 10, 0), P(12, 10, 0), P(12, 10, -0.35), P(0, 10, -0.35)]), fill: '#b89a7c' }, slab)
+  el('polygon', { points: pts([P(12, 0, 0), P(12, 10, 0), P(12, 10, -0.35), P(12, 0, -0.35)]), fill: '#9f8166' }, slab)
+  svg.insertBefore(slab, base)
+  // 后面两堵墙（带墙纸纹、踢脚线、墙顶）
+  const walls = el('g', {}, svg)
+  el('polygon', { points: pts([P(0, 0), P(12, 0), P(12, 0, WALL), P(0, 0, WALL)]), fill: '#f1e6d8', stroke: 'rgba(80,50,30,.2)' }, walls)
+  el('polygon', { points: pts([P(0, 0), P(0, 10), P(0, 10, WALL), P(0, 0, WALL)]), fill: '#e4d6c5', stroke: 'rgba(80,50,30,.2)' }, walls)
+  // 卧室那段墙换个暖粉色
+  el('polygon', { points: pts([P(0, 0, .35), P(6, 0, .35), P(6, 0, WALL), P(0, 0, WALL)]), fill: '#f4e1dc' }, walls)
+  el('polygon', { points: pts([P(0, 0, .35), P(0, 6, .35), P(0, 6, WALL), P(0, 0, WALL)]), fill: '#ead2cc' }, walls)
+  // 竖条墙纸
+  for (let x = 0.5; x < 12; x += 0.5) { const a = P(x, 0, .35), b = P(x, 0, WALL); el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: 'rgba(150,110,80,.07)', 'stroke-width': 3 }, walls) }
+  for (let y = 0.5; y < 6; y += 0.5) { const a = P(0, y, .35), b = P(0, y, WALL); el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: 'rgba(150,110,80,.07)', 'stroke-width': 3 }, walls) }
+  el('polygon', { points: pts([P(0, 0), P(12, 0), P(12, 0, 0.3), P(0, 0, 0.3)]), fill: '#c9ad8f' }, walls)
+  el('polygon', { points: pts([P(0, 0), P(0, 10), P(0, 10, 0.3), P(0, 0, 0.3)]), fill: '#bea285' }, walls)
+  // 墙顶的厚度
+  el('polygon', { points: pts([P(-.15, -.15, WALL), P(12, -.15, WALL), P(12, 0, WALL), P(0, 0, WALL)]), fill: '#d8c3aa' }, walls)
+  el('polygon', { points: pts([P(-.15, -.15, WALL), P(0, 0, WALL), P(0, 10, WALL), P(-.15, 10, WALL)]), fill: '#cdb69c' }, walls)
+  // 卫生间那段墙贴瓷砖
+  el('polygon', { points: pts([P(0, 6), P(0, 10), P(0, 10, 1.4), P(0, 6, 1.4)]), fill: '#d9ebef' }, walls)
+  for (let y = 6.4; y < 10; y += 0.4) { const a = P(0, y, 0), b = P(0, y, 1.4); el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: 'rgba(90,130,140,.18)' }, walls) }
+  for (let z = 0.35; z < 1.4; z += 0.35) { const a = P(0, 6, z), b = P(0, 10, z); el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: 'rgba(90,130,140,.18)' }, walls) }
+  // 厨房那段墙也贴一截瓷砖（灶台后面）
+  // 赛博主题：卧室和客厅的两面墙换成整面落地玻璃，外面是夜城（参考《边缘行者》里那间公寓）
+  if (THEME === 'cyber') {
+    const glass = el('g', {}, walls)
+    const panes = [
+      { at: (fu, fv) => P(fu * 12, 0, .3 + fv * (WALL - .3)), seed: 71, span: 2.2, moon: [.2, .82], rain: 40 },
+      { at: (fu, fv) => P(0, fu * 6, .3 + fv * (WALL - .3)), seed: 29, span: 1.2, rain: 20 },
+    ]
+    for (const pn of panes) {
+      el('polygon', { points: pts([pn.at(0, 0), pn.at(1, 0), pn.at(1, 1), pn.at(0, 1)]), fill: 'url(#sky)' }, glass)
+      drawCity(glass, pn.at, pn.seed, { span: pn.span, moon: pn.moon, rain: pn.rain })
+      // 玻璃上的一点反光
+      el('polygon', { points: pts([pn.at(.08, .15), pn.at(.14, .15), pn.at(.3, .95), pn.at(.24, .95)]), fill: '#ffffff', opacity: .05 }, glass)
+      el('polygon', { points: pts([pn.at(.55, .1), pn.at(.58, .1), pn.at(.7, .9), pn.at(.67, .9)]), fill: '#ffffff', opacity: .05 }, glass)
+    }
+    // 竖框和横框
+    for (let x = 0; x <= 12; x += 1.2) { const a = P(x, 0, .3), b = P(x, 0, WALL); el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: '#3a3157', 'stroke-width': 2 }, glass) }
+    for (let y = 0; y <= 6; y += 1.2) { const a = P(0, y, .3), b = P(0, y, WALL); el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: '#3a3157', 'stroke-width': 2 }, glass) }
+    for (const z of [.3, WALL]) { let a = P(0, 0, z), b = P(12, 0, z); el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: '#3a3157', 'stroke-width': 2.5 }, glass); a = P(0, 0, z); b = P(0, 6, z); el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: '#3a3157', 'stroke-width': 2.5 }, glass) }
+    // 地上映出的窗光（暗色反光地板）
+    const refl = el('g', { id: 'floorRefl' }, base)
+    for (let x = .6; x < 12; x += 1.2) el('polygon', { points: pts([P(x, .05), P(x + .5, .05), P(x + .9, 1.9), P(x + .4, 1.9)]), fill: '#7fe9ff', opacity: .06 }, refl)
+    for (let y = .6; y < 6; y += 1.2) el('polygon', { points: pts([P(.05, y), P(.05, y + .5), P(1.9, y + .9), P(1.9, y + .4)]), fill: '#ff7ae0', opacity: .05 }, refl)
+  }
+  // 窗（里面有天空、白天的云、晚上的月亮星星）
+  const onWall = (w, u, v) => (w.wall === 'north' ? P(u, 0, v) : P(0, u, v))
+  for (const w of L.windows) {
+    if (THEME === 'cyber' && !w.small) continue // 已经是整面玻璃了
+    const z0 = w.z0 ?? (w.small ? 1.55 : 1.0), z1 = w.z1 ?? (w.small ? 2.2 : 2.05)
+    const q = [onWall(w, w.from, z0), onWall(w, w.to, z0), onWall(w, w.to, z1), onWall(w, w.from, z1)]
+    el('polygon', { points: pts(q), fill: 'url(#sky)' }, walls)
+    const sc = el('g', { class: 'winScene' }, walls)
+    const at = (fu, fv) => onWall(w, w.from + (w.to - w.from) * fu, z0 + (z1 - z0) * fv)
+    const day = el('g', { class: 'winDay' }, sc)
+    for (const [fu, fv, r] of [[.3, .7, 7], [.4, .74, 9], [.5, .7, 6], [.75, .45, 5], [.82, .48, 6]]) { if (w.small && r > 6) continue; const c = at(fu, fv); el('ellipse', { cx: c[0], cy: c[1], rx: r * 1.5, ry: r * .8, fill: '#fff', opacity: .85 }, day) }
+    const night = el('g', { class: 'winNight' }, sc)
+    for (let i = 0; i < (w.small ? 3 : 7); i++) { const c = at(.12 + ((i * 37) % 76) / 100, .25 + ((i * 53) % 60) / 100); el('circle', { cx: c[0], cy: c[1], r: 1.2, fill: '#fff8d0' }, night) }
+    if (w.id === 'bedWindow' && THEME !== 'cyber') { const c = at(.7, .7); el('circle', { cx: c[0], cy: c[1], r: 7, fill: '#fff4c2' }, night); el('circle', { cx: c[0] + 3, cy: c[1] - 2, r: 6, fill: 'url(#sky)' }, night) }
+    if (THEME === 'cyber') {
+      day.setAttribute('class', 'winOff'); // 赛博主题：不要白云，换成城市天际线
+      let seed = w.from * 97 + 13; const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280 }
+      const city = el('g', {}, sc)
+      // 远处一层淡的楼
+      let u = 0
+      while (u < 1) { const bw = .08 + rnd() * .12, bh = .35 + rnd() * .35; el('polygon', { points: pts([at(u, 0), at(Math.min(1, u + bw), 0), at(Math.min(1, u + bw), bh), at(u, bh)]), fill: '#3a2560', opacity: .8 }, city); u += bw }
+      u = 0
+      while (u < 1) {
+        const bw = .1 + rnd() * .14, bh = .2 + rnd() * .5, u1 = Math.min(1, u + bw)
+        el('polygon', { points: pts([at(u, 0), at(u1, 0), at(u1, bh), at(u, bh)]), fill: '#120d22' }, city)
+        for (let k = 0; k < 6; k++) { if (rnd() < .45) continue; const c = at(u + rnd() * (u1 - u), rnd() * bh * .9); el('rect', { x: c[0] - .8, y: c[1] - .8, width: 1.6, height: 1.6, fill: rnd() < .5 ? '#ffd86b' : '#7fe9ff' }, city) }
+        if (rnd() < .35 && !w.small) { const c = at(u + .02, bh * .7); el('rect', { x: c[0], y: c[1], width: 5, height: 2.6, fill: rnd() < .5 ? '#ff3fd0' : '#00e5ff', filter: 'url(#neon)', class: 'neonpulse' }, city) }
+        u = u1
+      }
+      if (w.id === 'bedWindow') { const c = at(.78, .78); el('circle', { cx: c[0], cy: c[1], r: 6.5, fill: '#ffe9c4', opacity: .95 }, city) } // 月亮
+      // 雨
+      const rain = el('g', { class: 'rain' }, sc)
+      for (let k = 0; k < (w.small ? 4 : 12); k++) { const c = at(rnd(), .1 + rnd() * .85); el('line', { x1: c[0], y1: c[1], x2: c[0] - 1.5, y2: c[1] + 5, stroke: '#b8d8ff', 'stroke-width': .7, opacity: .55 }, rain) }
+    }
+    if (w.small) el('polygon', { points: pts(q), fill: 'rgba(255,255,255,.45)' }, walls) // 磨砂玻璃
+    el('polygon', { points: pts(q), fill: 'none', stroke: '#fff', 'stroke-width': 3.5 }, walls)
+    const mid = (w.from + w.to) / 2
+    const a = onWall(w, mid, z0), b = onWall(w, mid, z1)
+    el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: '#fff', 'stroke-width': 2 }, walls)
+    const sill = w.wall === 'north' ? [P(w.from - .1, 0, z0), P(w.to + .1, 0, z0), P(w.to + .1, .25, z0), P(w.from - .1, .25, z0)] : [P(0, w.from - .1, z0), P(0, w.to + .1, z0), P(.25, w.to + .1, z0), P(.25, w.from - .1, z0)]
+    el('polygon', { points: pts(sill), fill: '#fff' }, walls)
+    if (!w.small) {
+      // 两边窗帘 + 帘杆
+      for (const [u0, u1] of [[w.from - .35, w.from + .05], [w.to - .05, w.to + .35]]) {
+        const cl = [onWall(w, u0, z0 - .15), onWall(w, u1, z0 - .15), onWall(w, u1, z1 + .2), onWall(w, u0, z1 + .2)]
+        el('polygon', { points: pts(cl), fill: w.room === 'bedroom' ? '#e9a9b4' : '#9cbfd8' }, walls)
+        for (const f of [.33, .66]) { const a2 = onWall(w, u0 + (u1 - u0) * f, z0 - .15), b2 = onWall(w, u0 + (u1 - u0) * f, z1 + .2); el('line', { x1: a2[0], y1: a2[1], x2: b2[0], y2: b2[1], stroke: 'rgba(0,0,0,.08)', 'stroke-width': 2 }, walls) }
+      }
+      const r0 = onWall(w, w.from - .45, z1 + .25), r1 = onWall(w, w.to + .45, z1 + .25)
+      el('line', { x1: r0[0], y1: r0[1], x2: r1[0], y2: r1[1], stroke: '#8a6a4a', 'stroke-width': 2.5, 'stroke-linecap': 'round' }, walls)
+    }
+  }
+  // 墙上的东西
+  for (const d of L.decor || []) {
+    if (THEME === 'cyber' && ['poster', 'fairy', 'clock'].includes(d.kind)) continue
+    if (d.kind === 'poster') {
+      const q = [P(0, d.from, 1.2), P(0, d.to, 1.2), P(0, d.to, 2.15), P(0, d.from, 2.15)]
+      el('polygon', { points: pts(q), fill: '#fdf6ec', stroke: '#c9a27c', 'stroke-width': 2.5 }, walls)
+      const inner = [P(0, d.from + .1, 1.3), P(0, d.to - .1, 1.3), P(0, d.to - .1, 2.05), P(0, d.from + .1, 2.05)]
+      el('polygon', { points: pts(inner), fill: '#bfe0f2' }, walls)
+      const w1 = [P(0, d.from + .1, 1.3), P(0, d.to - .1, 1.3), P(0, d.to - .1, 1.55), P(0, d.from + .1, 1.6)]
+      el('polygon', { points: pts(w1), fill: '#6aa8de' }, walls)
+      const c = P(0, (d.from + d.to) / 2, 1.78)
+      el('ellipse', { cx: c[0], cy: c[1], rx: 11, ry: 6, fill: '#3d6fa8' }, walls)
+      el('path', { d: `M${c[0] + 9},${c[1] - 1} l8,-6 l-1,8 z`, fill: '#3d6fa8' }, walls)
+      el('circle', { cx: c[0] - 5, cy: c[1] - 1, r: 1.2, fill: '#fff' }, walls)
+    }
+    if (d.kind === 'fairy') {
+      const g = el('g', { id: 'fairy' }, walls)
+      const cols = ['#ffd36e', '#ff9db0', '#9fd8ff', '#b7f0a3']
+      let k = 0, prev = null
+      for (let x = d.from; x <= d.to + 1e-6; x += 0.18) {
+        const seg = (x - d.from) % 1.1 / 1.1
+        const z = 2.4 - 0.16 * Math.sin(Math.PI * seg)
+        const c = P(x, 0, z)
+        if (prev) el('line', { x1: prev[0], y1: prev[1], x2: c[0], y2: c[1], stroke: 'rgba(90,70,50,.45)', 'stroke-width': 0.8 }, g)
+        prev = c
+        if (k % 2 === 0) { el('circle', { cx: c[0], cy: c[1] + 2, r: 1.9, fill: cols[(k / 2) % cols.length], class: 'bulb' }, g) }
+        k++
+      }
+    }
+    if (d.kind === 'clock') {
+      const c = P(d.at, 0, 3.75)
+      el('ellipse', { cx: c[0], cy: c[1], rx: 11, ry: 12, fill: '#fffdf7', stroke: '#8a6a4a', 'stroke-width': 2.5 }, walls)
+      for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; el('circle', { cx: c[0] + Math.sin(a) * 8, cy: c[1] - Math.cos(a) * 9, r: .7, fill: '#8a6a4a' }, walls) }
+      el('line', { id: 'clockH', x1: c[0], y1: c[1], x2: c[0], y2: c[1] - 5, stroke: '#3b2f2a', 'stroke-width': 1.8, 'stroke-linecap': 'round' }, walls)
+      el('line', { id: 'clockM', x1: c[0], y1: c[1], x2: c[0], y2: c[1] - 8, stroke: '#3b2f2a', 'stroke-width': 1.2, 'stroke-linecap': 'round' }, walls)
+      walls.dataset.clock = c.join(',')
+    }
+    if (d.kind === 'towel') {
+      const a = P(0, d.from, 1.45), b = P(0, d.to, 1.45)
+      el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: '#b9c4c8', 'stroke-width': 2.5 }, walls)
+      el('polygon', { points: pts([P(0, d.from + .2, 1.45), P(0, d.from + .7, 1.45), P(0, d.from + .7, .85), P(0, d.from + .2, .9)]), fill: '#f2a7b5' }, walls)
+      el('polygon', { points: pts([P(0, d.from + .8, 1.45), P(0, d.to - .1, 1.45), P(0, d.to - .1, .95), P(0, d.from + .8, .9)]), fill: '#a7d3f2' }, walls)
+    }
+  }
+  if (THEME === 'cyber') {
+    const neon = el('g', { filter: 'url(#neon)', class: 'neonpulse' }, walls)
+    const line = (a, b, col, wdt = 2) => el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: col, 'stroke-width': wdt, 'stroke-linecap': 'round' }, neon)
+    line(P(0, 0, WALL - .1), P(12, 0, WALL - .1), '#00e5ff')
+    line(P(0, 0, WALL - .1), P(0, 10, WALL - .1), '#ff3fd0')
+    line(P(0, 0, .06), P(12, 0, .06), '#7a3cff', 1.6)
+    line(P(0, 0, .06), P(0, 10, .06), '#7a3cff', 1.6)
+    // 卧室墙上的霓虹鲸鱼灯牌
+    const W = (u, v) => P(3.05 + u * 1.7, 0, 1.55 + v * .7)
+    const whale = [[0, .45], [.12, .72], [.35, .86], [.62, .82], [.8, .62], [.86, .45], [.95, .62], [1, .8], [.98, .35], [.86, .3], [.72, .14], [.45, .08], [.2, .14], [.05, .28], [0, .45]]
+    el('polyline', { points: pts(whale.map(([u, v]) => W(u, v))), fill: 'none', stroke: '#00e5ff', 'stroke-width': 2.2, 'stroke-linejoin': 'round' }, neon)
+    const eye = W(.22, .5); el('circle', { cx: eye[0], cy: eye[1], r: 1.6, fill: '#ff3fd0' }, neon)
+    // 厨房吧台下面一道红色霓虹（游戏里那间房的红色点缀）
+    line(P(6.3, 6.95, .08), P(8.7, 6.95, .08), '#ff2a4f', 2)
+    line(P(8.7, 6.15, .08), P(8.7, 6.95, .08), '#ff2a4f', 2)
+    for (const [u, v] of [[.3, 1.0], [.42, 1.12], [.52, .98]]) { const c = W(u, v); el('circle', { cx: c[0], cy: c[1], r: 1.4, fill: '#7fe9ff' }, neon) }
+  }
+  // 白天从窗户照进来的光斑
+  const sun = el('g', { id: 'sunPatch', opacity: 0 }, svg)
+  el('polygon', { points: pts([P(7.35, .3), P(9.15, .3), P(9.95, 2.1), P(8.15, 2.1)]), fill: '#fff3c4', opacity: .35 }, sun)
+  el('polygon', { points: pts([P(.25, 1.3), P(.25, 2.5), P(1.9, 3.1), P(1.9, 1.9)]), fill: '#fff3c4', opacity: .3 }, sun)
+
+  // 家具底下的柔和阴影
+  const shadowLayer = el('g', { filter: 'url(#soft)', opacity: THEME === 'cyber' ? .55 : .3 }, svg)
+  const foot = (x, y, w, d, grow = .12) => el('polygon', { points: pts([P(x - grow, y - grow), P(x + w + grow, y - grow), P(x + w + grow, y + d + grow), P(x - grow, y + d + grow)]), fill: '#000' }, shadowLayer)
+  for (const f of L.furniture) if (!['spot', 'rug'].includes(f.kind) && !f.z) foot(f.x, f.y, f.w, f.d)
+  for (const d of L.decor || []) if (['beanbag', 'washer', 'floorlamp', 'plant2'].includes(d.kind)) foot(d.x - .35, d.y - .35, .7, .7)
+  { const c = L.decor.find((d) => d.kind === 'coffee'); if (c) foot(c.x + .1, c.y, c.w - .2, c.d) }
+
+  objLayer = el('g', {}, svg)
+  items = []
+  const add = (key, g) => { items.push({ key, g }) }
+  // 隔墙（矮，切开看）切成小段好排序
+  const partition = (x0, y0, x1, y1) => {
+    const n = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0)))
+    for (let i = 0; i < n; i++) {
+      const ax = x0 + (x1 - x0) * i / n, ay = y0 + (y1 - y0) * i / n, bx = x0 + (x1 - x0) * (i + 1) / n, by = y0 + (y1 - y0) * (i + 1) / n
+      const g = el('g', {})
+      if (x0 === x1) box(g, ax - .06, ay, 0, .12, by - ay, .55, '#efe4d6')
+      else box(g, ax, ay - .06, 0, bx - ax, .12, .55, '#efe4d6')
+      add((ax + bx) / 2 + (ay + by) / 2, g)
+    }
+  }
+  partition(6, 0, 6, 2.4); partition(6, 3.4, 6, 6)
+  partition(0, 6, 3.1, 6); partition(4.1, 6, 9.3, 6); partition(10.3, 6, 12, 6)
+  partition(5, 6, 5, 10)
+
+  for (const f of L.furniture) {
+    if (f.kind === 'spot') continue
+    const g = el('g', {})
+    g.dataset.id = f.id
+    const t = el('title', {}, g); t.textContent = f.name
+    drawFurniture(g, f)
+    let key = (f.x + f.w / 2) + (f.y + f.d / 2) + (f.z ? 20 : 0)
+    if (f.kind === 'rug') key = -5
+    add(key, g)
+  }
+  drawLoft(add)
+  for (const d of L.decor || []) {
+    const g = el('g', {})
+    const t = el('title', {}, g); t.textContent = d.name
+    const key = drawDecor(g, d)
+    if (key !== null) add(key, g)
+  }
+  // 被子（睡觉时盖在她身上）
+  blanketItem = el('g', { opacity: 0 })
+  box(blanketItem, 0.2, 4.45, 0.6, 2.2, 1.3, 0.16, '#9cc3e6')
+  box(blanketItem, 0.2, 4.45, 0.6, 2.2, .28, 0.17, '#ffffff')
+  add(99, blanketItem) // key 动态改
+  items.find((i) => i.g === blanketItem).dynamic = true
+
+  avatarG = makeAvatar()
+  items.push({ key: 0, g: avatarG, avatar: true })
+  sortItems()
+
+  lightLayer = el('g', { 'pointer-events': 'none' }, svg)
+  nightRect = el('rect', { x: -4000, y: -4000, width: 8000, height: 8000, fill: '#141a40', opacity: 0, 'pointer-events': 'none' }, svg)
+  svg.appendChild(lightLayer)
+}
+
+function drawFurniture(g, f) {
+  const { x, y, w, d, h } = f
+  const color = tc(f.color)
+  switch (f.kind) {
+    case 'bed': {
+      box(g, x, y, 0, w, d, .3, '#a8794f')
+      box(g, x + .08, y + .08, .3, w - .16, d - .16, .22, '#fbf7f0')
+      box(g, x + .25, y + .5, .52, (w - .6) / 2, .6, .15, '#ffffff')
+      box(g, x + .35 + (w - .6) / 2, y + .5, .52, (w - .6) / 2, .6, .15, '#ffffff')
+      box(g, x + .08, y + 1.0, .52, w - .16, d - 1.08, .08, '#9cc3e6')
+      box(g, x, y, 0, w, .12, .95, '#a8794f')
+      if (THEME === 'cyber') { const a = P(x, y + .12, .95), b = P(x + w, y + .12, .95); el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: '#7fe9ff', 'stroke-width': 2, filter: 'url(#neon)', class: 'neonpulse' }, g) }
+      if (THEME === 'cyber') { // 床底的霓虹灯带
+        const a = P(x, y + d, .04), b = P(x + w, y + d, .04), c = P(x + w, y, .04)
+        el('polyline', { points: pts([a, b, c]), fill: 'none', stroke: '#ff3fd0', 'stroke-width': 2.4, filter: 'url(#neon)', class: 'neonpulse' }, g)
+      }
+      // 床头柜和台灯
+      box(g, x + w + .1, y + .05, 0, .55, .5, .5, '#b98b5e')
+      box(g, x + w + .25, y + .18, .5, .22, .22, .12, '#f0e2c0')
+      box(g, x + w + .2, y + .13, .62, .32, .32, .22, '#ffe7b0')
+      break
+    }
+    case 'desk': {
+      box(g, x, y, .72, w, d, .08, color)
+      box(g, x + .05, y + .05, 0, .12, .12, .72, shade(color, -.2).replace('rgb', 'rgb'))
+      box(g, x + w - .17, y + d - .17, 0, .12, .12, .72, color)
+      box(g, x + .05, y + d - .17, 0, .12, .12, .72, color)
+      box(g, x + w - .17, y + .05, 0, .12, .12, .72, color)
+      // 显示器
+      box(g, x + .8, y + .35, .8, .25, .15, .1, '#444')
+      const mon = box(g, x + .45, y + .25, .9, 1.0, .08, .62, '#2b2f3a')
+      const scr = [P(x + .52, y + .33, .96), P(x + 1.38, y + .33, .96), P(x + 1.38, y + .33, 1.46), P(x + .52, y + .33, 1.46)]
+      el('polygon', { points: pts(scr), fill: '#3a4256', id: 'screen' }, g)
+      box(g, x + .6, y + .55, .8, .8, .25, .03, '#e8e8e8')
+      // 椅子
+      box(g, x + 1.0, y + 1.3, .42, .65, .6, .08, '#7a9ec0')
+      box(g, x + 1.0, y + 1.82, .42, .65, .08, .55, '#7a9ec0')
+      box(g, x + 1.28, y + 1.55, 0, .08, .08, .42, '#555')
+      // 台灯
+      box(g, x + 1.8, y + .3, .8, .12, .12, .4, '#d9c39a')
+      box(g, x + 1.65, y + .2, 1.2, .4, .32, .12, '#ffe7b0')
+      break
+    }
+    case 'wardrobe': {
+      const b = box(g, x, y, 0, w, d, h, color)
+      const a = P(x + w / 2, y + d, .05), c = P(x + w / 2, y + d, h - .05)
+      el('line', { x1: a[0], y1: a[1], x2: c[0], y2: c[1], stroke: 'rgba(60,40,30,.4)' }, g)
+      break
+    }
+    case 'sofa': {
+      box(g, x, y, 0, w, d, .25, shade(color, -.1).replace(/^rgb/, 'rgb'))
+      box(g, x + .05, y + .05, .25, w - .1, d - .1, .2, color)
+      box(g, x, y + d - .3, .25, w, .3, .55, color)
+      box(g, x, y, .25, .3, d - .3, .32, color)
+      box(g, x + w - .3, y, .25, .3, d - .3, .32, color)
+      box(g, x + .5, y + d - .55, .45, .55, .25, .4, '#f2c6a0')
+      break
+    }
+    case 'cabinet': {
+      box(g, x, y, 0, w, d, h, color)
+      box(g, x + .3, y + .2, h, w - .6, .1, .9, '#1f2228')
+      el('polygon', { points: pts([P(x + .36, y + .3, h + .06), P(x + w - .36, y + .3, h + .06), P(x + w - .36, y + .3, h + .84), P(x + .36, y + .3, h + .84)]), fill: 'url(#tvgrad)', opacity: THEME === 'cyber' ? .9 : 1 }, g)
+      if (THEME === 'cyber') for (const [fu, fv, fw] of [[.12, .7, .35], [.12, .55, .5], [.12, .4, .25]]) { const a = P(x + .36 + (w - .72) * fu, y + .3, h + .06 + .78 * fv), b = P(x + .36 + (w - .72) * (fu + fw), y + .3, h + .06 + .78 * fv); el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: '#ffffff', 'stroke-width': 1.2, opacity: .45 }, g) }
+      break
+    }
+    case 'shelf': {
+      const b = box(g, x, y, 0, w, d, h, color)
+      const cols = ['#d46a6a', '#6a8fd4', '#e0b252', '#7cb87c', '#a77cc9', '#e08b5d']
+      for (let r = 0; r < 4; r++) {
+        const z0 = .1 + r * .5
+        let xx = x + .08
+        let k = r
+        while (xx < x + w - .15) {
+          const bw = .12 + (k % 3) * .03, bh = .32 + (k % 2) * .08
+          el('polygon', { points: pts([P(xx, y + d, z0), P(xx + bw, y + d, z0), P(xx + bw, y + d, z0 + bh), P(xx, y + d, z0 + bh)]), fill: cols[k % cols.length] }, g)
+          xx += bw + .03; k++
+        }
+        const a = P(x, y + d, z0), c = P(x + w, y + d, z0)
+        el('line', { x1: a[0], y1: a[1], x2: c[0], y2: c[1], stroke: 'rgba(60,40,30,.5)' }, g)
+      }
+      break
+    }
+    case 'rug': {
+      el('polygon', { points: pts([P(x, y, .01), P(x + w, y, .01), P(x + w, y + d, .01), P(x, y + d, .01)]), fill: color, opacity: .85 }, g)
+      el('polygon', { points: pts([P(x + .15, y + .15, .012), P(x + w - .15, y + .15, .012), P(x + w - .15, y + d - .15, .012), P(x + .15, y + d - .15, .012)]), fill: 'none', stroke: '#fff', 'stroke-opacity': .6, 'stroke-dasharray': '4 3' }, g)
+      break
+    }
+    case 'plant': {
+      box(g, x + .1, y + .1, 0, .4, .4, .4, '#c4785a')
+      const c = P(x + .3, y + .3, .85)
+      for (const [dx, dy, r] of [[-8, 4, 13], [9, 2, 12], [0, -10, 14], [-3, 8, 11]]) el('circle', { cx: c[0] + dx, cy: c[1] + dy, r, fill: color }, g)
+      break
+    }
+    case 'toilet': {
+      box(g, x + .1, y + .2, 0, .6, .6, .4, '#fdfdfd')
+      box(g, x + .05, y, .2, .7, .25, .55, '#f3f6f7')
+      const c = P(x + .4, y + .55, .41)
+      el('ellipse', { cx: c[0], cy: c[1], rx: 15, ry: 8, fill: '#e9f1f4', stroke: '#c9d6db' }, g)
+      break
+    }
+    case 'sink': {
+      box(g, x, y, 0, w, d, h, '#d9e4e8')
+      const c = P(x + w / 2, y + d / 2, h + .01)
+      el('ellipse', { cx: c[0], cy: c[1], rx: 18, ry: 9, fill: '#fff', stroke: '#b8c8ce' }, g)
+      box(g, x + w / 2 - .04, y + .05, h, .08, .08, .25, '#b0b8bd')
+      break
+    }
+    case 'tub': {
+      box(g, x, y, 0, w, d, h, '#ffffff')
+      el('polygon', { points: pts([P(x + .15, y + .15, h + .01), P(x + w - .15, y + .15, h + .01), P(x + w - .15, y + d - .15, h + .01), P(x + .15, y + d - .15, h + .01)]), fill: '#bfe3f2', id: 'water' }, g)
+      break
+    }
+    case 'fridge': {
+      box(g, x, y, 0, w, d, h, color)
+      const a = P(x, y + d, 1.25), c = P(x + w, y + d, 1.25)
+      el('line', { x1: a[0], y1: a[1], x2: c[0], y2: c[1], stroke: 'rgba(60,60,70,.4)' }, g)
+      const hh = P(x + w - .15, y + d, 1.5), hh2 = P(x + w - .15, y + d, 1.85)
+      el('line', { x1: hh[0], y1: hh[1], x2: hh2[0], y2: hh2[1], stroke: '#999', 'stroke-width': 2 }, g)
+      break
+    }
+    case 'stove': {
+      box(g, x, y, 0, w, d, h, color)
+      for (const bx of [x + .55, x + 1.2]) {
+        const c = P(bx, y + .4, h + .01)
+        el('ellipse', { cx: c[0], cy: c[1], rx: 11, ry: 6, fill: '#333' }, g)
+        el('ellipse', { cx: c[0], cy: c[1], rx: 8, ry: 4, fill: '#ff8a3d', opacity: 0, class: 'flame burner' }, g)
+      }
+      box(g, x + 1.75, y + .15, h, .5, .5, .05, '#c8c8c8')
+      box(g, x + .35, y + .25, h, .4, .3, .2, '#555')
+      break
+    }
+    case 'table': {
+      box(g, x, y, h - .06, w, d, .06, color)
+      for (const [lx, ly] of [[x + .08, y + .08], [x + w - .16, y + .08], [x + .08, y + d - .16], [x + w - .16, y + d - .16]]) box(g, lx, ly, 0, .08, .08, h - .06, shade(color, -.2).replace(/^rgb/, 'rgb'))
+      box(g, x + .55, y + .3, h, .5, .4, .05, '#ffffff')
+      // 两把椅子
+      box(g, x + .55, y + d + .2, .42, .6, .55, .06, '#c99a6b')
+      box(g, x + .55, y + d + .7, .42, .6, .06, .5, '#c99a6b')
+      box(g, x + .55, y - .75, .42, .6, .55, .06, '#c99a6b')
+      break
+    }
+    case 'telescope': {
+      const Z = f.z || 0, cx = x + w / 2, cy = y + d / 2
+      const head = P(cx, cy, Z + .95)
+      for (const [fx, fy] of [[-.3, .25], [.3, .2], [0, -.3]]) { const ft = P(cx + fx, cy + fy, Z); el('line', { x1: head[0], y1: head[1], x2: ft[0], y2: ft[1], stroke: '#555', 'stroke-width': 1.6 }, g) }
+      const a = P(cx + .25, cy + .25, Z + .82), b = P(cx - .35, cy - .45, Z + 1.35)
+      el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: color, 'stroke-width': 7, 'stroke-linecap': 'round' }, g)
+      el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: 'rgba(0,0,0,.15)', 'stroke-width': 2, 'stroke-linecap': 'round', transform: 'translate(0,2)' }, g)
+      el('circle', { cx: b[0], cy: b[1], r: 4.5, fill: '#3b4a6b' }, g)
+      break
+    }
+    case 'loftsofa': {
+      const Z = f.z || 0
+      box(g, x, y, Z, w, d, .22, color)
+      box(g, x, y, Z + .22, w, .28, .4, color)
+      const c1 = P(x + .5, y + .5, Z + .3), c2 = P(x + 1.35, y + .5, Z + .3)
+      el('ellipse', { cx: c1[0], cy: c1[1], rx: 11, ry: 7, fill: tc('#ffffff'), opacity: .9 }, g)
+      el('ellipse', { cx: c2[0], cy: c2[1], rx: 11, ry: 7, fill: tc('#9cc3e6'), opacity: .9 }, g)
+      break
+    }
+    default: box(g, x, y, 0, w || .5, d || .5, h || .5, color || '#ccc')
+  }
+}
+
+// ---------- 二楼：挑空夹层 + 栏杆 + 楼梯
+function drawLoft(add) {
+  const lf = L.loft
+  if (!lf) return
+  const Z = lf.z, st = lf.stairs
+  // 楼板
+  const g = el('g', {})
+  box(g, lf.x, lf.y, Z - .2, lf.w, lf.d, .2, '#efe4d6', { noRim: true })
+  el('polygon', { points: pts([P(lf.x, lf.y, Z + .002), P(lf.x + lf.w, lf.y, Z + .002), P(lf.x + lf.w, lf.y + lf.d, Z + .002), P(lf.x, lf.y + lf.d, Z + .002)]), fill: THEME === 'cyber' ? '#332d4a' : '#e3c9a3' }, g)
+  for (let i = 1; i < lf.w; i++) { const a = P(lf.x + i, lf.y, Z + .003), b = P(lf.x + i, lf.y + lf.d, Z + .003); el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: 'rgba(80,50,30,.08)' }, g) }
+  const lab = P(lf.x + 1.2, lf.y + 1.5, Z); el('text', { x: lab[0], y: lab[1], 'font-size': 11, fill: THEME === 'cyber' ? 'rgba(220,210,255,.4)' : 'rgba(70,50,40,.45)', 'text-anchor': 'middle' }, g).textContent = '二楼'
+  if (THEME === 'cyber') { const a = P(lf.x, lf.y + lf.d, Z - .2), b = P(lf.x + lf.w, lf.y + lf.d, Z - .2); el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: '#00e5ff', 'stroke-width': 2, filter: 'url(#neon)', class: 'neonpulse' }, g) }
+  add(lf.x + lf.w / 2 + lf.y + lf.d / 2, g)
+  // 两根柱子
+  for (const cx of [lf.x + .05, st.x - .2]) { const c = el('g', {}); box(c, cx, lf.y + lf.d - .16, 0, .14, .14, Z - .2, THEME === 'cyber' ? '#3a3157' : '#d8c3aa'); add(cx + lf.y + lf.d, c) }
+  // 栏杆：前沿（留出楼梯口）+ 左边
+  const railSeg = (x0, y0, x1, y1) => {
+    const n = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0)))
+    for (let i = 0; i < n; i++) {
+      const ax = x0 + (x1 - x0) * i / n, ay = y0 + (y1 - y0) * i / n, bx = x0 + (x1 - x0) * (i + 1) / n, by = y0 + (y1 - y0) * (i + 1) / n
+      const rg = el('g', {})
+      el('polygon', { points: pts([P(ax, ay, Z), P(bx, by, Z), P(bx, by, Z + .85), P(ax, ay, Z + .85)]), fill: THEME === 'cyber' ? 'rgba(127,233,255,.16)' : 'rgba(200,225,240,.28)', stroke: THEME === 'cyber' ? 'rgba(127,233,255,.45)' : 'rgba(255,255,255,.25)', 'stroke-width': .6 }, rg)
+      const pa = P(ax, ay, Z), pb = P(ax, ay, Z + .9); el('line', { x1: pa[0], y1: pa[1], x2: pb[0], y2: pb[1], stroke: THEME === 'cyber' ? '#5a5370' : '#9c7b5b', 'stroke-width': 1.6 }, rg)
+      const ta = P(ax, ay, Z + .9), tb = P(bx, by, Z + .9); el('line', { x1: ta[0], y1: ta[1], x2: tb[0], y2: tb[1], stroke: THEME === 'cyber' ? '#7fe9ff' : '#9c7b5b', 'stroke-width': 2.2, 'stroke-linecap': 'round' }, rg)
+      add((ax + bx) / 2 + (ay + by) / 2 + 21, rg)
+    }
+  }
+  railSeg(lf.x, lf.y + lf.d, st.x, lf.y + lf.d)
+  railSeg(lf.x, lf.y, lf.x, lf.y + lf.d)
+  // 楼梯：从客厅地上一级级往后爬到二楼
+  const n = 8, sd = (st.yBottom - st.yTop) / n, rise = Z / n
+  for (let i = 0; i < n; i++) {
+    const y0 = st.yBottom - (i + 1) * sd
+    const sg = el('g', {})
+    box(sg, st.x, y0, 0, st.w, sd, (i + 1) * rise, THEME === 'cyber' ? '#2a2637' : '#c49a6c')
+    if (THEME === 'cyber') { const a = P(st.x, y0 + sd, (i + 1) * rise), b = P(st.x + st.w, y0 + sd, (i + 1) * rise); el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: '#ff3fd0', 'stroke-width': 1.4, filter: 'url(#neon)' }, sg) }
+    add(st.x + st.w / 2 + y0 + sd / 2 + .1, sg)
+  }
+  const hr = el('g', {})
+  const h0 = P(st.x + st.w, st.yBottom, .9), h1 = P(st.x + st.w, st.yTop, Z + .9)
+  el('line', { x1: h0[0], y1: h0[1], x2: h1[0], y2: h1[1], stroke: THEME === 'cyber' ? '#7fe9ff' : '#9c7b5b', 'stroke-width': 2, 'stroke-linecap': 'round' }, hr)
+  for (let i = 0; i <= 4; i++) { const yy = st.yBottom - (st.yBottom - st.yTop) * i / 4, zz = Z * i / 4; const a = P(st.x + st.w, yy, zz), b = P(st.x + st.w, yy, zz + .9); el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: THEME === 'cyber' ? '#5a5370' : '#9c7b5b', 'stroke-width': 1.2 }, hr) }
+  add(st.x + st.w + (st.yTop + st.yBottom) / 2 + .6, hr)
+}
+
+// ---------- 地上的装饰（返回排序用的 key；墙上的在 buildScene 里画了，返回 null）
+function drawDecor(g, d) {
+  switch (d.kind) {
+    case 'plush': {
+      const c = P(d.x, d.y, .9)
+      el('ellipse', { cx: c[0], cy: c[1], rx: 13, ry: 8, fill: '#6aa8de', stroke: '#3d6fa8' }, g)
+      el('path', { d: `M${c[0] + 11},${c[1] - 2} l9,-7 l-1,10 z`, fill: '#6aa8de', stroke: '#3d6fa8' }, g)
+      el('ellipse', { cx: c[0] - 2, cy: c[1] + 3, rx: 8, ry: 3.5, fill: '#e8f4fc' }, g)
+      el('circle', { cx: c[0] - 6, cy: c[1] - 2, r: 1.3, fill: '#2d3b66' }, g)
+      return 7.0
+    }
+    case 'roundrug': {
+      const c = P(d.x, d.y, .01)
+      el('ellipse', { cx: c[0], cy: c[1], rx: 52, ry: 26, fill: '#f3d7a4', opacity: .9 }, g)
+      el('ellipse', { cx: c[0], cy: c[1], rx: 40, ry: 20, fill: 'none', stroke: '#fff', 'stroke-opacity': .7, 'stroke-dasharray': '3 3' }, g)
+      return -5
+    }
+    case 'beanbag': {
+      const c = P(d.x, d.y, 0)
+      el('ellipse', { cx: c[0], cy: c[1] - 9, rx: 22, ry: 14, fill: '#f0a46e' }, g)
+      el('ellipse', { cx: c[0] - 3, cy: c[1] - 14, rx: 14, ry: 7, fill: '#f6bd8f' }, g)
+      return d.x + d.y
+    }
+    case 'coffee': {
+      // 圆茶几（视频里那张）
+      const cx = d.x + d.w / 2, cy = d.y + d.d / 2, r = .55
+      const base0 = P(cx, cy, 0), top0 = P(cx, cy, .38)
+      el('ellipse', { cx: base0[0], cy: base0[1], rx: 12, ry: 6, fill: tc('#a8794f') }, g)
+      el('rect', { x: base0[0] - 3, y: top0[1], width: 6, height: base0[1] - top0[1], fill: tc('#8f6a48') }, g)
+      el('ellipse', { cx: top0[0], cy: top0[1] + 2.5, rx: r * 45, ry: r * 22.6, fill: shade(tc('#c99a6b'), -.25) }, g)
+      el('ellipse', { cx: top0[0], cy: top0[1], rx: r * 45, ry: r * 22.6, fill: THEME === 'cyber' ? '#e9ecf5' : tc('#c99a6b'), stroke: 'rgba(0,0,0,.12)' }, g)
+      el('ellipse', { cx: top0[0] - 6, cy: top0[1] - 3, rx: 9, ry: 3, fill: '#ffffff', opacity: .35 }, g)
+      const mug = P(cx - .15, cy + .05, .38); el('rect', { x: mug[0] - 3.5, y: mug[1] - 8, width: 7, height: 8, rx: 1.5, fill: '#ffffff', stroke: 'rgba(0,0,0,.2)' }, g)
+      const bk = P(cx + .2, cy - .1, .385); el('ellipse', { cx: bk[0], cy: bk[1], rx: 9, ry: 4.5, fill: tc('#7aa6c2') }, g)
+      if (THEME === 'cyber') {
+        const hg = el('g', { class: 'holo' }, g)
+        const b = P(cx, cy, .4), t = P(cx, cy, 1.25)
+        el('path', { d: `M${b[0] - 5},${b[1]} L${t[0] - 20},${t[1]} L${t[0] + 20},${t[1]} L${b[0] + 5},${b[1]} Z`, fill: 'url(#holograd)' }, hg)
+        el('path', { d: `M${t[0] - 14},${t[1] + 2} C${t[0] - 10},${t[1] - 9} ${t[0] + 8},${t[1] - 9} ${t[0] + 11},${t[1]} L${t[0] + 17},${t[1] - 5} L${t[0] + 15},${t[1] + 4} L${t[0] + 11},${t[1] + 2} C${t[0] + 6},${t[1] + 7} ${t[0] - 10},${t[1] + 7} ${t[0] - 14},${t[1] + 2} Z`, fill: 'rgba(0,229,255,.25)', stroke: '#7fe9ff', 'stroke-width': 1, filter: 'url(#neon)' }, hg)
+      }
+      return cx + cy
+    }
+    case 'floorlamp': {
+      box(g, d.x - .15, d.y - .15, 0, .3, .3, .05, '#555')
+      box(g, d.x - .03, d.y - .03, .05, .06, .06, 1.6, '#666')
+      const c = P(d.x, d.y, 1.75)
+      el('path', { d: `M${c[0] - 12},${c[1] + 8} L${c[0] + 12},${c[1] + 8} L${c[0] + 8},${c[1] - 8} L${c[0] - 8},${c[1] - 8} Z`, fill: '#fff1cf', stroke: '#d9c39a' }, g)
+      return d.x + d.y
+    }
+    case 'plant2': {
+      box(g, d.x - .25, d.y - .25, 0, .5, .5, .45, '#e7e1d6')
+      const c = P(d.x, d.y, 1.0)
+      for (const [dx, dy, r, rot] of [[-14, 6, 13, -30], [12, 4, 12, 30], [0, -12, 14, 0], [-8, -4, 11, -60], [9, -8, 11, 50]]) el('ellipse', { cx: c[0] + dx, cy: c[1] + dy, rx: r, ry: r * .55, fill: '#4f8f5e', transform: `rotate(${rot} ${c[0] + dx} ${c[1] + dy})` }, g)
+      return d.x + d.y
+    }
+    case 'washer': {
+      box(g, d.x - .45, d.y - .4, 0, .9, .85, .9, '#f4f6f8')
+      const c = P(d.x, d.y + .45, .45)
+      el('ellipse', { cx: c[0], cy: c[1], rx: 10, ry: 11, fill: '#9cc3e6', stroke: '#c0c8cc', 'stroke-width': 2 }, g)
+      return d.x + d.y
+    }
+    case 'bathmat': {
+      el('polygon', { points: pts([P(d.x - .35, d.y - .5, .01), P(d.x + .35, d.y - .5, .01), P(d.x + .35, d.y + .5, .01), P(d.x - .35, d.y + .5, .01)]), fill: '#f2b8c6' }, g)
+      return -5
+    }
+    case 'pendant': {
+      const top = P(d.x, d.y, 3.4), c = P(d.x, d.y, 1.75)
+      el('line', { x1: top[0], y1: top[1], x2: c[0], y2: c[1], stroke: '#555', 'stroke-width': 1 }, g)
+      el('path', { d: `M${c[0] - 16},${c[1] + 9} Q${c[0]},${c[1] - 10} ${c[0] + 16},${c[1] + 9} Z`, fill: '#e9b44c' }, g)
+      el('ellipse', { cx: c[0], cy: c[1] + 9, rx: 16, ry: 3, fill: '#fff4cc', id: 'pendantBulb' }, g)
+      return 99
+    }
+    case 'fruit': {
+      const c = P(d.x, d.y, .77)
+      el('ellipse', { cx: c[0], cy: c[1], rx: 12, ry: 6, fill: '#fff', stroke: '#ccc' }, g)
+      for (const [dx, dy, col] of [[-5, -3, '#e85d5d'], [3, -4, '#f2b632'], [0, -7, '#7cbf5c'], [6, -1, '#e85d5d']]) el('circle', { cx: c[0] + dx, cy: c[1] + dy, r: 3.6, fill: col }, g)
+      return 18.0
+    }
+    case 'pot': {
+      box(g, d.x - .25, d.y - .2, .9, .5, .4, .25, '#7d8a96')
+      return 14.1
+    }
+    case 'loftplant': {
+      const Z = (L.loft && L.loft.z) || 2.6
+      box(g, d.x - .2, d.y - .2, Z, .4, .4, .35, '#c4785a')
+      const c = P(d.x, d.y, Z + .75)
+      for (const [dx, dy, r] of [[-7, 4, 10], [8, 2, 9], [0, -8, 11]]) el('circle', { cx: c[0] + dx, cy: c[1] + dy, r, fill: '#5f9e6e' }, g)
+      return d.x + d.y + 20
+    }
+    case 'kettle': {
+      box(g, d.x - .14, d.y - .14, .9, .28, .28, .28, '#e05d5d')
+      return 14.2
+    }
+  }
+  return null
+}
+
+// ---------- 默认绘制的角色
+function makeAvatar() {
+  const g = el('g', { id: 'avatar' })
+  const inner = el('g', { id: 'avInner' }, g)
+  el('ellipse', { cx: 0, cy: 0, rx: 16, ry: 6, fill: 'rgba(0,0,0,.18)', id: 'shadow' }, inner)
+  const body = el('g', { id: 'body', class: 'bob' }, inner)
+  // 尾巴
+  el('path', { d: 'M6,-14 C22,-10 26,-26 20,-36 C28,-38 34,-34 34,-28 C38,-36 44,-36 46,-32 C40,-28 34,-20 24,-16 C18,-12 12,-10 6,-10 Z', fill: '#3d6fa8', stroke: '#2b4f7c', 'stroke-width': 1 }, body)
+  // 腿
+  el('rect', { x: -7, y: -16, width: 5, height: 14, rx: 2, fill: '#f6dccb', id: 'legL' }, body)
+  el('rect', { x: 2, y: -16, width: 5, height: 14, rx: 2, fill: '#f6dccb', id: 'legR' }, body)
+  el('ellipse', { cx: -4.5, cy: -2, rx: 4, ry: 2.4, fill: '#3b3b4a' }, body)
+  el('ellipse', { cx: 4.5, cy: -2, rx: 4, ry: 2.4, fill: '#3b3b4a' }, body)
+  // 裙子
+  el('path', { d: 'M-11,-14 L11,-14 L8,-36 L-8,-36 Z', fill: '#f4f6fb', stroke: '#c7d2e4' }, body)
+  el('path', { d: 'M-11,-14 L11,-14 L10,-18 L-10,-18 Z', fill: '#5d8fc7' }, body)
+  el('path', { d: 'M-7,-36 L7,-36 L0,-30 Z', fill: '#5d8fc7' }, body)
+  // 手
+  el('rect', { x: -13, y: -34, width: 4, height: 13, rx: 2, fill: '#f6dccb', id: 'armL' }, body)
+  el('rect', { x: 9, y: -34, width: 4, height: 13, rx: 2, fill: '#f6dccb', id: 'armR' }, body)
+  // 头
+  const head = el('g', { id: 'head' }, body)
+  el('path', { d: 'M-17,-50 C-19,-38 -16,-30 -11,-28 L-11,-50 Z M17,-50 C19,-38 16,-30 11,-28 L11,-50 Z', fill: '#24345a' }, head)
+  el('circle', { cx: 0, cy: -52, r: 15, fill: '#fde6d6' }, head)
+  el('path', { d: 'M-16,-52 C-16,-70 16,-70 16,-52 C12,-58 6,-56 3,-61 C0,-56 -8,-58 -9,-60 C-11,-56 -14,-54 -16,-52 Z', fill: '#24345a' }, head)
+  // 鳍耳
+  el('path', { d: 'M-15,-55 L-25,-62 L-22,-50 Z', fill: '#6aa8de', stroke: '#3d6fa8' }, head)
+  el('path', { d: 'M15,-55 L25,-62 L22,-50 Z', fill: '#6aa8de', stroke: '#3d6fa8' }, head)
+  // 眼睛
+  const eyes = el('g', { id: 'eyesOpen' }, head)
+  el('ellipse', { cx: -5.5, cy: -50, rx: 2.6, ry: 3.4, fill: '#2d3b66' }, eyes)
+  el('ellipse', { cx: 5.5, cy: -50, rx: 2.6, ry: 3.4, fill: '#2d3b66' }, eyes)
+  el('circle', { cx: -4.6, cy: -51.4, r: 1, fill: '#fff' }, eyes)
+  el('circle', { cx: 6.4, cy: -51.4, r: 1, fill: '#fff' }, eyes)
+  const closed = el('g', { id: 'eyesClosed', opacity: 0 }, head)
+  el('path', { d: 'M-8,-50 Q-5.5,-47.5 -3,-50', stroke: '#2d3b66', 'stroke-width': 1.5, fill: 'none' }, closed)
+  el('path', { d: 'M3,-50 Q5.5,-47.5 8,-50', stroke: '#2d3b66', 'stroke-width': 1.5, fill: 'none' }, closed)
+  el('ellipse', { cx: -9, cy: -45.5, rx: 2.6, ry: 1.4, fill: '#f4a9a9', opacity: .7 }, head)
+  el('ellipse', { cx: 9, cy: -45.5, rx: 2.6, ry: 1.4, fill: '#f4a9a9', opacity: .7 }, head)
+  el('path', { d: 'M-1.5,-43.5 Q0,-42.3 1.5,-43.5', stroke: '#b5655d', 'stroke-width': 1, fill: 'none' }, head)
+  // 小鲸鱼发卡
+  el('path', { d: 'M8,-63 C12,-66 17,-65 18,-62 C16,-61 13,-60 9,-61 Z', fill: '#8fc3ec' }, head)
+  return g
+}
+
+function setPose(pose, act) {
+  if (ANIM) { document.getElementById('avInner').setAttribute('transform', ''); document.getElementById('shadow')?.setAttribute('opacity', 1); return }
+  const body = document.getElementById('body')
+  const inner = document.getElementById('avInner')
+  const sleep = act === 'sleep' || act === 'nap' || act === 'woken'
+  document.getElementById('eyesOpen')?.setAttribute('opacity', act === 'sleep' || act === 'nap' ? 0 : 1)
+  document.getElementById('eyesClosed')?.setAttribute('opacity', act === 'sleep' || act === 'nap' ? 1 : 0)
+  if (pose === 'lie') {
+    // 平躺在床面上：脚朝床尾、头朝枕头（沿着床的长边方向斜着躺）
+    inner.setAttribute('transform', 'matrix(0.894,0.447,-0.894,0.447,0,0)')
+    body.setAttribute('class', 'breathe')
+  } else if (pose === 'sit') {
+    inner.setAttribute('transform', S && S.hasSprite ? 'translate(0,5) scale(1,0.9)' : 'translate(0,6)')
+    body.setAttribute('class', '')
+  } else {
+    inner.setAttribute('transform', '')
+    body.setAttribute('class', 'bob')
+  }
+  document.getElementById('shadow').setAttribute('opacity', pose === 'lie' ? 0 : 1)
+}
+
+function sortItems() {
+  items.sort((a, b) => a.key - b.key)
+  for (const it of items) objLayer.appendChild(it.g)
+}
+function placeAvatar() {
+  const [sx, sy] = P(pos.x, pos.y, pos.z || 0)
+  avatarG.setAttribute('transform', `translate(${sx},${sy})`)
+  const it = items.find((i) => i.avatar)
+  const lyingNow = !ANIM && S && S.act.pose === 'lie' && !path.length
+  const up = (pos.z || 0) > 1.4 && pos.y < (L.loft ? L.loft.y + L.loft.d + .05 : 0)
+  it.key = pos.x + pos.y + (up ? 20.6 : lyingNow ? 0.2 : (pos.z || 0) > 0.1 ? 1.5 : 0.3)
+  const bl = items.find((i) => i.dynamic)
+  bl.key = it.key + 0.01
+  sortItems()
+  placeOverlay()
+}
+
+// ---------- 走路：穿门
+function roomAt(x, y, z = 0) {
+  if (z > 1.4 && L.loft) return 'loft'
+  return L.rooms.find((r) => !r.z && x >= r.x - 0.01 && x <= r.x + r.w + 0.01 && y >= r.y - 0.01 && y <= r.y + r.d + 0.01)?.id || 'living'
+}
+function roomPath(a, b) {
+  if (a === b) return [a]
+  const prev = { [a]: null }, q = [a]
+  while (q.length) {
+    const r = q.shift()
+    for (const d of L.doors) {
+      const n = d.a === r ? d.b : d.b === r ? d.a : null
+      if (n && !(n in prev)) { prev[n] = r; q.push(n) }
+    }
+  }
+  const out = [b]; let c = b
+  while (prev[c]) { c = prev[c]; out.unshift(c) }
+  return out
+}
+function planPath(from, to) {
+  const rs = roomPath(roomAt(from.x, from.y, from.z || 0), roomAt(to.x, to.y, to.z || 0))
+  const wp = []
+  for (let i = 0; i < rs.length - 1; i++) {
+    const d = L.doors.find((x) => (x.a === rs[i] && x.b === rs[i + 1]) || (x.b === rs[i] && x.a === rs[i + 1]))
+    const fromR = L.rooms.find((r) => r.id === rs[i])
+    if (d.stairs) {
+      const up = rs[i + 1] === 'loft'
+      const [a, b] = up ? [d.stairs.bottom, d.stairs.top] : [d.stairs.top, d.stairs.bottom]
+      wp.push({ ...a, floor: a.z }, { ...b, stair: true })
+    } else if (d.y === 6) { const s = fromR.y < 6 ? -1 : 1; wp.push({ x: d.x, y: d.y + .45 * s, z: 0 }, { x: d.x, y: d.y - .45 * s, z: 0 }) }
+    else { const s = fromR.x < d.x ? -1 : 1; wp.push({ x: d.x + .45 * s, y: d.y, z: 0 }, { x: d.x - .45 * s, y: d.y, z: 0 }) }
+  }
+  wp.push({ ...to, floor: (to.z || 0) > 1.4 ? (L.loft ? L.loft.z : 2.6) : 0 })
+  return wp
+}
+let lastFrame = 0
+function frame(ts) {
+  const dt = Math.min(0.05, (ts - (lastFrame || ts)) / 1000); lastFrame = ts
+  if (path.length) {
+    const t = path[0]
+    if (ANIM) { const sdx = (t.x - pos.x) - (t.y - pos.y); if (Math.abs(sdx) > 0.02) animState.flip = sdx > 0 } // 素材朝左，往右走就镜像
+    const dz = (t.z || 0) - (pos.z || 0)
+    const dx = t.x - pos.x, dy = t.y - pos.y, dist = Math.hypot(dx, dy, t.stair ? dz * .6 : 0)
+    const sp = (t.stair ? 1.4 : 2.2) * dt
+    if (dist <= sp) { pos = { x: t.x, y: t.y, z: path.length === 1 ? (t.z || 0) : (t.floor ?? t.z ?? 0) }; path.shift(); if (!path.length) arrived() }
+    else {
+      pos.x += dx / dist * sp; pos.y += dy / dist * sp
+      pos.z = t.stair ? (pos.z || 0) + dz * (sp / dist) : (t.floor ?? ((pos.z || 0) > 1.4 ? (L.loft ? L.loft.z : 2.6) : 0))
+    }
+    placeAvatar()
+  }
+  tickAnim(dt)
+  requestAnimationFrame(frame)
+}
+let pendingPose = null
+function arrived() { if (pendingPose) { setPose(pendingPose.pose, pendingPose.act); pendingPose = null } updateBlanket() }
+function rebuildBlanket(thick) {
+  blanketItem.innerHTML = ''
+  box(blanketItem, 0.2, 4.45, 0.6, 2.2, 1.3, thick ? 0.42 : 0.16, '#9cc3e6')
+  box(blanketItem, 0.2, 4.45, 0.6, 2.2, .28, thick ? 0.44 : 0.17, '#ffffff')
+}
+function updateBlanket() {
+  const sleeping = S && (ANIM ? ['sleep', 'nap'] : ['sleep', 'nap', 'woken']).includes(S.act.id) && !path.length
+  blanketItem.setAttribute('opacity', sleeping ? 1 : 0)
+}
+
+// ---------- 逐帧动画小人（用你给的桌宠动作包；没有的话还是用静态立绘）
+let ANIM = null, animState = { name: '', frame: 0, acc: 0, flip: false, cycle: 0 }
+const ANIM_LOOP_FROM = { '原地小憩沉眠': 40 }
+const IDLE_SET = ['待机呼吸休闲', '待机呼吸休闲', '待机呼吸休闲', '哈欠连天', '超大伸懒腰', '东张西望', '碎碎念-发呆碎碎念']
+function animFor(actId) {
+  const h = new Date(S ? S.now : Date.now()).getHours()
+  const map = {
+    sleep: '原地小憩沉眠', nap: '原地小憩沉眠', woken: '熬夜刷手机',
+    computer: '写代码', gal: '打主机游戏', mc: '打主机游戏',
+    cook: '煮泡面', eat: h < 11 ? '吃早餐' : h < 16 ? '吃午餐' : '吃晚餐', snack: '冰箱翻吃的',
+    shower: '换装浴袍', wash: h < 12 ? '晨间刷牙' : '洗脸', toilet: '站着晃神打瞌睡',
+    window: '东张西望', read: '轻快记录', music: '悠闲哼歌', tidy: (S && S.act.since % 2) ? '吸尘器吸地' : '收拾书桌',
+    dress: (S && S.act.since % 2) ? '整体换装试色' : '照镜子', plant: '蝴蝶蜜蜂环绕头顶开花',
+    stargaze: '观星指认', lounge: '碎碎念-发呆碎碎念', idle: '待机呼吸休闲',
+  }
+  const n = map[actId] || '待机呼吸休闲'
+  return ANIM.anims[n] ? n : '待机呼吸休闲'
+}
+function setupAnim() {
+  const body = document.getElementById('body'); body.innerHTML = ''; body.setAttribute('class', '')
+  const flipG = el('g', { id: 'animFlip' }, body)
+  const vp = el('svg', { id: 'animVp', overflow: 'hidden', preserveAspectRatio: 'none' }, flipG)
+  el('image', { id: 'animImg' }, vp)
+  document.getElementById('shadow')?.setAttribute('rx', 14)
+}
+function showAnim(name, restart) {
+  const a = ANIM.anims[name]; if (!a) return
+  const k = 72 / ANIM.charHeight, [axx, ayy] = ANIM.anchor
+  const vp = document.getElementById('animVp'), img = document.getElementById('animImg')
+  if (animState.name !== name) {
+    vp.setAttribute('x', (a.ox - axx) * k); vp.setAttribute('y', (a.oy - ayy) * k)
+    vp.setAttribute('width', a.fw / a.scale * k); vp.setAttribute('height', a.fh / a.scale * k)
+    vp.setAttribute('viewBox', `0 0 ${a.fw} ${a.fh}`)
+    img.setAttribute('href', '/anim/' + a.file); img.setAttribute('width', a.cols * a.fw); img.setAttribute('height', a.rows * a.fh)
+    animState.name = name
+    if (restart !== false) { animState.frame = a.loop ? a.loop[0] : 0; animState.acc = 0; animState.cycle = 0 }
+  }
+}
+function drawAnimFrame() {
+  const a = ANIM.anims[animState.name]; if (!a) return
+  const c = animState.frame % a.cols, r = Math.floor(animState.frame / a.cols)
+  const img = document.getElementById('animImg'); img.setAttribute('x', -c * a.fw); img.setAttribute('y', -r * a.fh)
+  document.getElementById('animFlip').setAttribute('transform', animState.flip ? 'scale(-1,1)' : '')
+}
+function tickAnim(dt) {
+  if (!ANIM || !S) return
+  const walking = path.length > 0
+  const want = walking ? '走路' : animFor(S.act.id)
+  if (animState.name !== want && !(S.act.id === 'idle' && !walking && IDLE_SET.includes(animState.name))) showAnim(want)
+  const a = ANIM.anims[animState.name]; if (!a) return
+  animState.acc += dt * a.fps
+  while (animState.acc >= 1) {
+    animState.acc -= 1; animState.frame++
+    const end = a.loop ? a.loop[1] : a.frames - 1
+    if (animState.frame > end) {
+      animState.cycle++
+      animState.frame = a.loop ? a.loop[0] : (ANIM_LOOP_FROM[animState.name] || 0)
+      if (S.act.id === 'idle' && !walking) { const nx = IDLE_SET[Math.floor(Math.random() * IDLE_SET.length)]; if (nx !== animState.name) { showAnim(nx); break } }
+    }
+  }
+  drawAnimFrame()
+}
+
+// ---------- 头顶气泡（HTML 叠在 SVG 上）
+function screenPoint(x, y, z) {
+  const [sx, sy] = P(x, y, z)
+  const pt = svg.createSVGPoint(); pt.x = sx; pt.y = sy
+  const m = svg.getScreenCTM(); if (!m) return null
+  const r = pt.matrixTransform(m)
+  const box = overlay.getBoundingClientRect()
+  return { x: r.x - box.left, y: r.y - box.top }
+}
+let bubbleEls = null
+function placeOverlay() {
+  if (!S) return
+  if (!bubbleEls) {
+    bubbleEls = { tag: document.createElement('div'), cloud: document.createElement('div'), zz: [] }
+    bubbleEls.tag.className = 'tag'; bubbleEls.cloud.className = 'bubble cloud'
+    overlay.append(bubbleEls.tag, bubbleEls.cloud)
+    for (let i = 0; i < 3; i++) { const z = document.createElement('div'); z.className = 'zzz'; z.textContent = 'z'; z.style.animationDelay = (i * .8) + 's'; overlay.appendChild(z); bubbleEls.zz.push(z) }
+  }
+  const lying = !ANIM && S.act.pose === 'lie' && !path.length
+  const top = lying ? screenPoint(pos.x, pos.y - 1.75, (pos.z || 0) + .45) : screenPoint(pos.x, pos.y, (pos.z || 0) + 1.75)
+  if (!top) return
+  bubbleEls.tag.textContent = path.length ? '🚶' : S.act.emoji
+  bubbleEls.tag.style.left = (top.x + 26) + 'px'; bubbleEls.tag.style.top = (top.y + 8) + 'px'
+  const th = S.thoughts[0]
+  const fresh = th && S.now - th.at < 15 * 60000 && (!SHARE || S.shareThought)
+  bubbleEls.cloud.style.opacity = fresh ? 1 : 0
+  bubbleEls.cloud.style.display = fresh ? 'block' : 'none'
+  if (fresh) {
+    const txt = th.text.length > 34 ? th.text.slice(0, 33) + '…' : th.text
+    bubbleEls.cloud.textContent = (th.dream ? '💭 ' : '') + txt
+    bubbleEls.cloud.style.left = top.x + 'px'; bubbleEls.cloud.style.top = (top.y - 18) + 'px'
+  }
+  // 小特效：听歌冒音符、做饭吃饭冒热气、泡澡冒泡泡
+  if (!bubbleEls.fx) { bubbleEls.fx = []; for (let i = 0; i < 3; i++) { const f = document.createElement('div'); f.className = 'zzz fx'; f.style.animationDelay = (i * .85) + 's'; overlay.appendChild(f); bubbleEls.fx.push(f) } }
+  const fxMap = { music: ['♪', '♫', '♪'], cook: ['～', '～', '～'], eat: ['～', '～', '～'], shower: ['°', 'o', '°'], snack: ['✦', '', ''], read: ['', '', ''], gal: ['♡', '', ''] }
+  const fx = !ANIM && !path.length && fxMap[S.act.id]
+  const anchor = S.act.id === 'cook' ? screenPoint(7.0, 6.5, 1.25) : S.act.id === 'eat' ? screenPoint(9.8, 8.1, .95) : S.act.id === 'shower' ? screenPoint(1.4, 8.8, .8) : top
+  bubbleEls.fx.forEach((f, i) => {
+    const ch = fx ? fx[i] : ''
+    f.style.display = ch ? 'block' : 'none'; f.textContent = ch
+    f.style.color = S.act.id === 'music' || S.act.id === 'gal' ? '#d46a9a' : S.act.id === 'shower' ? '#6fb3e0' : '#b9a9a0'
+    if (anchor) { f.style.left = (anchor.x - 10 + i * 9) + 'px'; f.style.top = (anchor.y + (S.act.id === 'music' ? 20 : 0)) + 'px' }
+  })
+  const sleeping = !ANIM && ['sleep', 'nap'].includes(S.act.id) && !path.length
+  bubbleEls.zz.forEach((z, i) => { z.style.display = sleeping ? 'block' : 'none'; z.style.left = (top.x + 10 + i * 6) + 'px'; z.style.top = (top.y + 10 - i * 4) + 'px' })
+}
+
+// ---------- 光照
+function updateLights() {
+  if (!S) return
+  const d = new Date(S.now), h = d.getHours(), m = d.getMinutes()
+  const [a, b] = skyColors(h)
+  document.getElementById('sky0').setAttribute('stop-color', a)
+  document.getElementById('sky1').setAttribute('stop-color', b)
+  const na = nightAlpha(h, m)
+  nightRect.setAttribute('opacity', na)
+  if (THEME === 'cyber') nightRect.setAttribute('fill', '#0a0620')
+  lightLayer.innerHTML = ''
+  const id = S.act.id
+  // 窗外：白天云、晚上月亮星星；白天地上有光斑
+  const isNight = h >= 19 || h < 6
+  document.querySelectorAll('.winDay').forEach((g) => g.setAttribute('opacity', isNight ? 0 : 1))
+  document.querySelectorAll('.winOff').forEach((g) => g.setAttribute('opacity', 0))
+  document.querySelectorAll('.winNight').forEach((g) => g.setAttribute('opacity', isNight ? 1 : 0))
+  document.getElementById('sunPatch')?.setAttribute('opacity', THEME !== 'cyber' && h >= 8 && h < 17 ? 1 : 0)
+  // 挂钟走真实时间
+  const wl = document.querySelector('[data-clock]')
+  if (wl) {
+    const [cx, cy] = wl.dataset.clock.split(',').map(Number)
+    const ah = ((h % 12) + m / 60) / 12 * Math.PI * 2, am = m / 60 * Math.PI * 2
+    document.getElementById('clockH').setAttribute('x2', cx + Math.sin(ah) * 5); document.getElementById('clockH').setAttribute('y2', cy - Math.cos(ah) * 5.5)
+    document.getElementById('clockM').setAttribute('x2', cx + Math.sin(am) * 7.5); document.getElementById('clockM').setAttribute('y2', cy - Math.cos(am) * 8.5)
+  }
+  const screenOn = ['computer', 'gal', 'mc'].includes(id)
+  const scr = document.getElementById('screen'); if (scr) scr.setAttribute('fill', screenOn ? (THEME === 'cyber' ? '#ff7ae0' : '#9fd4ff') : (THEME === 'cyber' ? '#1b1840' : '#3a4256'))
+  document.querySelectorAll('.burner').forEach((b) => b.setAttribute('opacity', id === 'cook' ? 1 : 0))
+  if (na > 0.05) {
+    const asleep = id === 'sleep'
+    const lamps = []
+    if (!asleep) lamps.push([2.9, 2.9, .9, 60], [4.6, 0.6, 1.3, 70], [8.4, 2.6, 2.2, 90])
+    if (id === 'woken') lamps.push([3.2, 2.9, .9, 70])
+    if (screenOn) lamps.push([4.0, 0.9, 1.2, 110])
+    if (['shower', 'toilet', 'wash'].includes(id)) lamps.push([1.6, 7.6, 1.5, 120])
+    if (['cook', 'eat', 'snack'].includes(id)) lamps.push([8.0, 7.6, 1.5, 140])
+    if (['stargaze', 'lounge'].includes(id)) lamps.push([9.0, 0.8, 3.4, 100])
+    lamps.push([11.45, 3.2, 1.7, 80]) // 落地灯一直留着
+    // 吊灯打下来的一束光
+    { const a = P(9.8, 8.0, 1.62), l = P(9.3, 8.0, .76), r = P(10.3, 8.0, .76); el('path', { d: `M${a[0] - 10},${a[1] + 9} L${l[0] - 14},${l[1] + 8} L${r[0] + 14},${r[1] + 8} L${a[0] + 10},${a[1] + 9} Z`, fill: 'url(#cone)', opacity: Math.min(1, na * 2.2) }, lightLayer) }
+    if (['cook', 'eat', 'snack'].includes(id) || !asleep) lamps.push([9.8, 8.0, 1.6, 70]) // 餐桌吊灯
+    for (const [x, y, z, r] of lamps) { const [sx, sy] = P(x, y, z); el('circle', { cx: sx, cy: sy, r, fill: 'url(#glow)', opacity: Math.min(0.85, na * 1.8) }, lightLayer) }
+    // 串灯晚上亮
+    if (THEME !== 'cyber') document.querySelectorAll('#fairy .bulb').forEach((b) => { const [sx, sy] = [Number(b.getAttribute('cx')), Number(b.getAttribute('cy'))]; el('circle', { cx: sx, cy: sy, r: 7, fill: b.getAttribute('fill'), opacity: .35 * Math.min(1, na * 2.4) }, lightLayer) })
+  }
+  if (screenOn) { const [sx, sy] = P(4.0, 0.7, 1.2); el('circle', { cx: sx, cy: sy, r: 70, fill: 'url(#scr)' }, lightLayer) }
+}
+
+// ---------- 面板
+const fmt = (t) => { const d = new Date(t); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+function renderPanel() {
+  const a = S.act
+  document.getElementById('emo').textContent = a.emoji
+  document.getElementById('lbl').textContent = a.label
+  const mins = Math.round((S.now - a.since) / 60000)
+  document.getElementById('sub').textContent = `${a.room} · ${fmt(a.since)} 开始，${mins} 分钟了` + (a.id === 'sleep' ? ` · 大概 ${fmt(a.until)} 醒` : '')
+  document.getElementById('hudNow').textContent = `${a.emoji} ${a.label}`
+  document.getElementById('clock').textContent = fmt(S.now)
+  const feel = document.getElementById('feel')
+  feel.innerHTML = (S.feel.length ? S.feel : ['状态不错']).map((f) => `<span class="chip">${esc(f)}</span>`).join('') + (S.whim ? `<span class="chip">惦记着：${esc(S.whim.label)}</span>` : '')
+  const th = S.thoughts[0]
+  document.getElementById('latest').innerHTML = th
+    ? `<div class="thought">${esc(th.text)}</div><div class="meta"><span class="chip">${fmt(th.at)}</span>${th.mood ? `<span class="chip">${esc(th.mood)}</span>` : ''}${th.dream ? '<span class="chip dream">梦里</span>' : ''}${th.want ? `<span class="chip">想去：${esc(th.want)}</span>` : ''}${th.tell ? `<span class="chip tell">想跟主人说：${esc(th.tell)}${th.reach ? `（${esc(th.reach)}）` : ''}</span>` : ''}</div>`
+    : '<div class="small">还没想过事情。</div>'
+  document.getElementById('err').textContent = S.lastErr ? '想事情出错：' + S.lastErr : ''
+  const btn = document.getElementById('thinkBtn'); if (!btn.dataset.busy) btn.disabled = !!S.thinking
+  document.getElementById('needs').innerHTML = S.needDefs.map((n) => {
+    const v = Math.round(S.needs[n.id]); const cls = v < 25 ? 'low' : v < 45 ? 'mid' : ''
+    return `<span>${n.name}</span><span class="bar"><i class="${cls}" style="width:${v}%"></i></span><span class="num">${v}</span>`
+  }).join('')
+  document.getElementById('thoughts').innerHTML = S.thoughts.slice(0, 20).map((t) => `<li><span class="t">${fmt(t.at)}</span>${t.dream ? '💭 ' : ''}${esc(t.text)}${t.mood ? ` <span class="chip">${esc(t.mood)}</span>` : ''}${t.tell ? `<div class="small">想跟主人说：「${esc(t.tell)}」${t.reach ? ' · ' + esc(t.reach) : ''}</div>` : ''}</li>`).join('') || '<li class="small">还没有</li>'
+  document.getElementById('log').innerHTML = S.log.map((l) => `<li><span class="t">${fmt(l.at)}</span>${esc(l.label)}${l.by === 'self' ? ' <span class="chip">她自己决定的</span>' : ''}</li>`).join('') || '<li class="small">今天还没开始</li>'
+  document.getElementById('foot').textContent = (ANIM ? '角色动画：蓝毛小女仆桌宠动作包（hunmer/aboutme-pets，上游 PC2005-cloud/dsh-pet），仅限非商用 · ' : '') + (S.lanUrls && S.lanUrls.length ? `手机（同一个 Wi-Fi）打开：${S.lanUrls.join(' 或 ')} · ` : '') + `作息：${S.schedule.bedtime} 睡 · ${S.schedule.wakeup} 起 · 今天想了 ${S.day.thoughts || 0} 次 · 主动找主人 ${S.day.proactive || 0}/${S.schedule.proactivePerDay} · 下次想事约 ${S.nextThinkIn} 分钟后`
+}
+
+// ---------- 拉数据
+async function poll() { // eslint-disable-line
+  try {
+    const r = await fetch('/api/state', { cache: 'no-store' }); const s = await r.json()
+    const first = !S
+    S = s
+    const title = (S.displayName || '大肥鱼') + '的小屋'
+    document.title = title
+    document.getElementById('houseTitle').textContent = title
+    if (first && S.hasAnim && !ANIM) {
+      try { ANIM = await (await fetch('/anim/anim.json')).json(); setupAnim(); showAnim('待机呼吸休闲'); rebuildBlanket(true) } catch (e) { ANIM = null }
+    }
+    let spot = S.act.spot
+    if (ANIM && ['sleep', 'nap'].includes(S.act.id)) spot = { x: 1.3, y: 4.8, z: .74 } // 坐在被窝里打瞌睡
+    if (ANIM && S.act.id === 'woken') spot = { x: 1.25, y: 4.2, z: .74 }
+    const key = `${S.act.id}|${S.act.at}|${S.act.since}`
+    if (first && S.hasSprite && !ANIM) {
+      // 用主人给的全身立绘换掉画的小人（脚踩在原点上）
+      const body = document.getElementById('body'); body.innerHTML = ''
+      const img = el('image', { href: '/sprite', x: -27, y: -76, width: 54, height: 72, preserveAspectRatio: 'xMidYMax meet' }, body)
+    } else if (first && S.hasAvatar) {
+      // 配了自己的头像图：换掉画的脑袋
+      const head = document.getElementById('head'); head.innerHTML = ''
+      const defs = svg.querySelector('defs'); const cp = el('clipPath', { id: 'headClip' }, defs); el('circle', { cx: 0, cy: -52, r: 17 }, cp)
+      el('image', { href: '/avatar', x: -17, y: -69, width: 34, height: 34, 'clip-path': 'url(#headClip)', preserveAspectRatio: 'xMidYMid slice' }, head)
+      el('circle', { cx: 0, cy: -52, r: 17, fill: 'none', stroke: '#fff', 'stroke-width': 2 }, head)
+    }
+    if (first) { pos = { ...spot }; setPose(S.act.pose, S.act.id); placeAvatar() }
+    else if (key !== lastSpotKey) {
+      const far = Math.hypot(spot.x - pos.x, spot.y - pos.y) > 0.05
+      if (far) { setPose('stand', ''); pendingPose = { pose: S.act.pose, act: S.act.id }; path = planPath(pos, spot) }
+      else { pos = { ...spot }; setPose(S.act.pose, S.act.id); placeAvatar() }
+    }
+    lastSpotKey = key
+    renderPanel(); updateLights(); updateBlanket(); placeOverlay()
+    if (SHARE) {
+      const a = S.act, th = S.thoughts[0]
+      document.getElementById('sharecard').innerHTML = `<div class="big">${a.emoji} ${esc(a.label)}</div>`
+        + `<div class="sm">${esc(a.room)} · ${fmt(S.now)} · 已经 ${Math.round((S.now - a.since) / 60000)} 分钟</div>`
+        + `<div class="chips">${((S.feel.filter((f) => !f.includes('主人'))).length ? S.feel.filter((f) => !f.includes('主人')) : ['状态不错']).map((f) => `<span>${esc(f)}</span>`).join('')}</div>`
+        + (S.shareThought && th ? `<div class="th">“${esc(th.text)}”</div>` : '')
+    }
+  } catch (e) { document.getElementById('hudNow').textContent = '连不上小屋插件（DSH 开着吗？）' }
+}
+document.getElementById('thinkBtn').addEventListener('click', async () => {
+  const b = document.getElementById('thinkBtn'); b.disabled = true; b.dataset.busy = '1'; b.textContent = '在想……'
+  try { await fetch('/api/think', { method: 'POST' }) } catch {}
+  b.textContent = '让她现在想一下'; delete b.dataset.busy; b.disabled = false; poll()
+})
+window.addEventListener('resize', placeOverlay)
+;(async () => {
+  L = await (await fetch('/api/layout')).json()
+  THEME = new URLSearchParams(location.search).get('theme') || L.theme || 'cozy'
+  if (THEME === 'cyber') {
+    document.body.classList.add('cyber')
+    const pc = document.getElementById('particles')
+    for (let i = 0; i < 26; i++) { const d = document.createElement('i'); d.style.left = (8 + Math.random() * 84) + '%'; d.style.top = (25 + Math.random() * 65) + '%'; d.style.animationDelay = (-Math.random() * 9) + 's'; d.style.animationDuration = (7 + Math.random() * 6) + 's'; pc.appendChild(d) }
+  }
+  buildScene()
+  await poll()
+  setInterval(poll, 5000)
+  requestAnimationFrame(frame)
+})()
+</script>
+</body>
+</html>

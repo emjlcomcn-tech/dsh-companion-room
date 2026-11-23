@@ -1,0 +1,12 @@
+node_modules/
+/demo/
+/release/
+*.tgz
+.env*
+settings.json
+state.json
+qq-bridge-config.json
+*.log
+*.vrm
+*.glb
+face_*.webp

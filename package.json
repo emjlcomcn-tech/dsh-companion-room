@@ -1,0 +1,13 @@
+{
+  "name": "dsh-companion-room",
+  "version": "0.1.4",
+  "type": "module",
+  "main": "lib/index.js",
+  "description": "A portable 3D companion room and city map for DeepSeek Harness",
+  "license": "MIT",
+  "engines": { "node": ">=22" },
+  "files": ["lib", "src", "scripts/build.mjs", "cordis.patch.yml", "THREE-LICENSE.txt"],
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } },
+  "scripts": { "build": "node scripts/build.mjs", "test": "node --test" },
+  "devDependencies": { "esbuild": "0.28.2", "three": "0.170.0" }
+}

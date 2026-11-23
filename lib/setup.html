@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>小屋设置</title>
+  <style>
+    :root{color-scheme:dark;font:15px/1.6 system-ui,"Microsoft YaHei",sans-serif;color:#e8edf6;background:#111726}
+    *{box-sizing:border-box}body{margin:0;padding:clamp(20px,6vw,64px);min-height:100vh;background:radial-gradient(ellipse at top right,#2b464e,transparent 55%),#111726}
+    main{max-width:560px;margin:auto;padding:clamp(20px,5vw,34px);border:1px solid #566b7c;border-radius:18px;background:#182233;box-shadow:0 20px 60px #050a166a}
+    h1{margin:0 0 4px;font-size:clamp(24px,4vw,32px)}p{margin:0 0 20px;color:#bac8d8}form{display:grid;gap:16px}
+    label{display:grid;gap:5px}input,select,button{font:inherit}input:not([type=checkbox]),select{width:100%;padding:9px 11px;border:1px solid #607285;border-radius:8px;background:#121b29;color:inherit}
+    :focus-visible{outline:2px solid #a5d6cf;outline-offset:3px}.times{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.toggle{display:flex;align-items:baseline;gap:9px}.toggle input{margin:0;accent-color:#8bc4b9}
+    .actions{display:flex;gap:14px;align-items:center;flex-wrap:wrap}button{border:1px solid #a3d8cf;border-radius:9px;padding:9px 17px;background:#a3d8cf;color:#102922;font-weight:650;cursor:pointer}button:disabled{opacity:.48;cursor:default}
+    a{color:#c8dfeb}#feedback{margin:0;color:#ffcbad}small{color:#b7c6d5}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>小屋设置</h1>
+    <p>选一个已有的 DSH 工作区，让那里的角色使用这间小屋。</p>
+    <form id="settings">
+      <label>DSH 工作区<select id="workspace" required></select></label>
+      <label>小屋里显示的称呼<input id="displayName" required maxlength="30" autocomplete="off"></label>
+      <div class="times">
+        <label>睡觉时间<input type="time" id="bedtime" required></label>
+        <label>起床时间<input type="time" id="wakeup" required></label>
+      </div>
+      <label>风格<select id="theme"><option value="cozy">暖色小屋</option><option value="cyber">赛博夜城</option></select></label>
+      <label class="toggle"><input type="checkbox" id="cat">启用小猫</label>
+      <label>小猫的名字<input id="catName" maxlength="20" autocomplete="off" placeholder="小猫"></label>
+      <label class="toggle"><input type="checkbox" id="qqEnabled">使用该工作区已绑定的 QQ 私聊</label>
+      <label class="toggle"><input type="checkbox" id="thoughts">用 DSH 的模型生成小屋心声</label>
+      <small id="avatar"></small>
+      <p id="feedback" role="status" hidden></p>
+      <div class="actions"><button id="save" disabled>保存并进入小屋</button><a href="/?demo=1">先看看小屋</a></div>
+    </form>
+  </main>
+  <script type="module">
+    const field = id => document.getElementById(id)
+    const feedback = message => { field('feedback').textContent = message; field('feedback').hidden = !message }
+    const form = field('settings'), save = field('save')
+    async function load() {
+      const res = await fetch('/api/setup')
+      if (!res.ok) throw Error('无法读取设置。请在运行 DSH 的电脑打开这个页面。')
+      const config = await res.json()
+      field('workspace').add(new Option('选择工作区', ''))
+      for (const { id, title } of config.workspaces) field('workspace').add(new Option(title || id, id))
+      field('workspace').value = config.workspaceId || ''
+      for (const key of ['displayName','bedtime','wakeup','theme','catName']) field(key).value = config[key]
+      field('cat').checked = config.cat
+      field('qqEnabled').checked = config.qqEnabled && config.qqDetected
+      field('qqEnabled').disabled = !config.qqDetected
+      field('thoughts').checked = config.thoughts
+      field('avatar').textContent = config.avatar === 'dfy' ? '已找到大肥鱼模型。' : '已支持大肥鱼。模型文件可按说明添加。'
+      save.disabled = config.workspaces.length === 0
+      if (save.disabled) feedback('先在 DSH 中打开或创建一个工作区，然后刷新这里。')
+    }
+    form.addEventListener('submit', async event => {
+      event.preventDefault()
+      save.disabled = true
+      feedback('正在保存……')
+      try {
+        const data = Object.fromEntries(['displayName','bedtime','wakeup','theme','catName'].map(key => [key, field(key).value]))
+        data.workspaceId = field('workspace').value
+        data.qqEnabled = field('qqEnabled').checked
+        data.thoughts = field('thoughts').checked
+        data.cat = field('cat').checked
+        const res = await fetch('/api/setup', { method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(data) })
+        const out = await res.json()
+        if (!res.ok) throw Error(out.message || '保存失败，请再试一次。')
+        location.assign('/')
+      } catch (error) { feedback(error.message); save.disabled = false }
+    })
+    load().catch(error => feedback(error.message))
+  </script>
+</body>
+</html>

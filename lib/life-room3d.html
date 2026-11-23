@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>小屋</title>
+<style>
+:root{--bg:#07080f;--card:rgba(16,18,30,.78);--line:rgba(255,255,255,.1);--tx:#e8eaf4;--mut:#9aa0b8;--acc:#ff6fb5;--cy:#2de2ff}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:14px/1.55 "PingFang SC","Microsoft YaHei",system-ui,sans-serif;overflow:hidden}
+#app{display:flex;height:100%}#stage{position:relative;flex:1;min-width:0;height:100%}#stage canvas{display:block;touch-action:none}
+#hud{position:absolute;left:14px;top:14px;max-width:min(340px,calc(100% - 28px));background:var(--card);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+#hud.off{opacity:.7}#hud .row{display:flex;align-items:center;gap:10px}#emo{font-size:26px}#lbl{font-weight:600;font-size:16px}#clock{margin-left:auto;color:var(--mut);font-variant-numeric:tabular-nums}
+#dfyModelLabel{color:var(--mut);font-size:11px;line-height:1.3;margin-top:6px}
+#roomSettings[hidden],body.share #dfyModelLabel{display:none}
+#dfyModelLink[aria-busy=true]{opacity:.7;cursor:progress}
+#dfyModelError:not(:empty){width:fit-content;margin:0 0 8px;padding:4px 9px;border-radius:8px;background:var(--card);color:#ffacac}
+#sub{color:var(--mut);font-size:12px;margin-top:2px}#feel{margin-top:6px;display:flex;flex-wrap:wrap;gap:5px}
+.chip{display:inline-block;padding:1px 8px;border-radius:999px;background:rgba(255,255,255,.08);font-size:12px;color:#cfd3e6}.chip.tell{background:rgba(255,111,181,.18);color:#ffc2de}
+#bubble{position:absolute;transform:translate(-50%,-100%);max-width:240px;background:rgba(255,255,255,.94);color:#262838;border-radius:14px;padding:7px 11px;font-size:13px;line-height:1.45;pointer-events:none;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+#bubble:after{content:"";position:absolute;left:50%;bottom:-6px;width:12px;height:12px;background:inherit;transform:translateX(-50%) rotate(45deg);border-radius:2px}#bubble .tg{margin-right:5px}
+#feibiBubble{position:absolute;transform:translate(-50%,-100%);max-width:235px;background:#fff3d9;color:#42321f;border:1px solid #edcd8e;border-radius:13px;padding:7px 11px;font-size:13px;line-height:1.4;pointer-events:none;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+#credit a{color:inherit}
+#walkControls{position:absolute;left:14px;right:14px;bottom:14px;pointer-events:none}
+#btns{display:flex;gap:8px;flex-wrap:wrap}#btns>*{pointer-events:auto}
+#walkHint{width:fit-content;max-width:100%;margin:0 0 8px;padding:6px 10px;border-radius:8px;background:var(--card);border:1px solid var(--line);font-size:13px}
+button,a.btn{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px 12px;cursor:pointer;text-decoration:none;backdrop-filter:blur(10px)}button:hover,a.btn:hover{border-color:var(--cy)}button:disabled{opacity:.5;cursor:default}
+#toggle{position:absolute;right:14px;top:14px}button.on{border-color:var(--acc);color:#ffc2de;background:rgba(255,111,181,.16)}
+#panel{width:360px;height:100%;overflow:auto;background:#0d0f1a;border-left:1px solid var(--line);padding:16px;transition:margin .25s}
+body.panel-off #panel{margin-right:-360px}
+h3{margin:16px 0 8px;font-size:13px;color:var(--mut);font-weight:600;letter-spacing:.04em}h3:first-child{margin-top:0}
+.thought{font-size:15px}.meta{margin-top:6px;display:flex;flex-wrap:wrap;gap:5px}.small{color:var(--mut);font-size:12px}
+#needs{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center}.bar{height:7px;border-radius:9px;background:rgba(255,255,255,.08);overflow:hidden}.bar i{display:block;height:100%;background:var(--cy);border-radius:9px}.bar i.mid{background:#ffd166}.bar i.low{background:#ff5a6e}.num{color:var(--mut);font-variant-numeric:tabular-nums;font-size:12px}
+ul{list-style:none;margin:0;padding:0}li{padding:7px 0;border-bottom:1px solid var(--line)}li .t{color:var(--mut);margin-right:8px;font-variant-numeric:tabular-nums;font-size:12px}
+#neighbors{margin:16px 0;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#151a28}#neighbors summary{cursor:pointer;font-weight:600;color:#f0eaf6}#neighbors .small{margin-top:4px}#neighbors li:last-child{border-bottom:0}
+#err{color:#ff8a98;font-size:12px}#foot,#credit{color:var(--mut);font-size:11px;margin-top:14px}
+#loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--mut);background:var(--bg)}
+body.share #panel,body.share #walkControls,body.share #toggle,body.share #loading{display:none!important}
+#title{display:none;position:absolute;left:16px;top:14px;font-size:22px;font-weight:700;color:#f3e9ff;text-shadow:0 0 12px rgba(200,120,255,.7)}#title small{font-size:14px;color:#9fe8ff;margin-left:10px;font-weight:500}
+body.share #title{display:block}body.share #hud{top:auto;bottom:16px}
+#cityMap[hidden],#cityMap [hidden],#cityBtn[hidden]{display:none}
+body.city-open :is(#panel,#hud,#toggle,#walkControls,#bubble,#feibiBubble),body.city-visiting :is(#panel,#hud,#toggle,#walkControls,#bubble,#feibiBubble,#careFade){display:none!important}
+#cityMap{position:absolute;inset:0;z-index:8;overflow:hidden;--map-card:rgba(12,19,35,.88);--map-edge:#becff53b;--map-glow:#88d5ea;color:#f0f4ff;pointer-events:none}
+#cityMap[data-tone=night]{--map-card:rgba(9,12,27,.91);--map-edge:#838ebc65;--map-glow:#97ebfa}
+.citySurface,.cityLabels{position:absolute;inset:0}.citySurface{pointer-events:auto;touch-action:none;cursor:grab;background:radial-gradient(ellipse at 52% 48%,transparent 42%,#141d303a 100%)}.citySurface:active{cursor:grabbing}
+#cityMap[data-tone=night] .citySurface{background:radial-gradient(ellipse at 53% 48%,transparent 39%,#070a1b53 100%)}
+.cityHeader,.cityTools,.cityDetail{position:absolute;background:var(--map-card);border:1px solid var(--map-edge);box-shadow:0 7px 24px #0b102e52;border-radius:12px;backdrop-filter:blur(10px)}
+.cityHeader{left:14px;top:14px;padding:10px 14px;max-width:calc(100% - 190px);border-left-color:var(--map-glow)}.cityHeader h2{font-size:19px;margin:0 0 2px}.cityStatus{color:#d3e6f3;font-size:13px}
+.cityAgenda{margin-top:5px;color:#a6e0ea;font-size:12px}
+.cityTools{right:14px;top:14px;display:flex;gap:6px;padding:6px;pointer-events:auto}.cityTools button,.cityDetail button{background:#232d46;border-color:#bdc8ed3a;backdrop-filter:none}
+.cityPin{position:absolute;transform:translate(-50%,-100%);display:flex;align-items:center;gap:5px;padding:3px 8px;border:1px solid var(--map-edge);border-radius:8px;white-space:nowrap;background:var(--map-card);color:#f1f7ff;font-size:12px;line-height:1.55;pointer-events:auto;box-shadow:0 2px 8px #0e18367a;backdrop-filter:none}
+.cityPin span:first-child{min-width:13px;text-align:center}.cityPin[aria-pressed=true]{color:#18263d;background:#ecf3fb;border-color:#e6f5ff;z-index:2}.cityPin.current{outline:2px solid var(--map-glow);outline-offset:2px;box-shadow:0 0 12px #56d9ee71;z-index:3}
+.cityPin.planned{outline:2px dashed #f2c69a;outline-offset:2px}
+.cityLive{position:absolute;transform:translate(-50%,-100%);background:#a6eafa;border:2px solid #e6faff;border-radius:8px;box-shadow:0 0 12px #52cee090;color:#14233c;padding:2px 7px;font-size:11px;font-weight:700;white-space:nowrap;z-index:4}
+.cityDetail{left:14px;bottom:14px;max-width:min(340px,calc(100% - 28px));padding:10px 14px;pointer-events:auto}.cityPlace{margin:0 0 2px;font-size:15px}.cityNote{margin:0;color:#d3e6f3}.cityDetail button{margin-top:8px}
+.cityActions{display:flex;flex-wrap:wrap;gap:6px}#cityEnter{background:#243c55;border-color:#8db8d582}#cityDispatch{background:#294948;border-color:#9adbc486}#cityDispatch:disabled{opacity:.5;cursor:default}#cityDispatchFeedback{margin:7px 0 0;color:#e2eefa}
+#cityVisit{position:absolute;z-index:8;left:14px;top:14px;max-width:calc(100% - 28px);padding:9px 12px;border:1px solid #becff55a;border-radius:12px;background:var(--card);backdrop-filter:blur(10px)}
+#cityVisitName{font-size:16px;font-weight:700;margin:0 0 5px}#cityVisit button + button{margin-left:5px}
+.cityHelp{position:absolute;right:14px;bottom:14px;color:#eff6fb;background:#26394de8;border-radius:9px;padding:5px 10px;font-size:12px}
+@media (max-width:670px){.cityPin{padding:2px 5px;font-size:10px}.cityPin:not([aria-pressed=true]):not(.current) .cityPinName{display:none}.cityHelp{display:none}.cityHeader{left:8px;top:8px;max-width:calc(100% - 144px);padding:7px 9px}.cityHeader h2{font-size:16px}.cityStatus{font-size:11px}.cityTools{right:8px;top:8px;padding:4px;gap:3px}.cityTools button{font-size:12px;padding:5px 6px}.cityDetail{left:8px;bottom:8px;font-size:12px}}
+@media (max-width:900px){#panel{position:absolute;right:0;top:0;width:min(360px,88vw);z-index:5;box-shadow:-10px 0 40px rgba(0,0,0,.5)}body.panel-off #panel{margin-right:0;transform:translateX(100%)}#panel{transition:transform .25s}#toggle{z-index:6}}
+</style></head><body>
+<div id="app">
+  <div id="stage">
+    <div id="title"><span id="houseTitle">小屋</span><small id="ttime"></small></div>
+    <div id="hud"><div class="row"><span id="emo">🐋</span><span id="lbl">正在进屋……</span><span id="clock"></span></div><div id="sub"></div><div id="feel"></div><div id="dfyModelLabel" hidden></div></div>
+    <div id="bubble" style="display:none"><span class="tg"></span><span class="tx"></span></div>
+    <div id="feibiBubble" hidden></div>
+    <button id="toggle">☰ 她在想什么</button>
+    <div id="walkControls"><p id="walkHint" role="status" hidden></p><div id="dfyModelError" role="status"></div><div id="btns"><button id="walkBtn" aria-pressed="false">指定位置</button><button id="resumeBtn" hidden>恢复自动活动</button><button id="swimBtn">去游泳</button><button id="focusBtn">👀 看她</button><button id="feibiBtn" hidden>找菲比啾比</button><button id="friendBtn" hidden>让她们聊会儿</button><button id="livingBtn">客厅视角</button><button id="viewBtn">🏠 全景</button><button id="cityBtn" aria-controls="cityMap">城市地图</button><a id="roomSettings" class="btn" href="/setup" hidden>小屋设置</a><button id="qbtn"></button></div></div>
+    <section id="cityMap" aria-label="城市地图" hidden>
+      <div class="citySurface" aria-hidden="true"></div>
+      <div class="cityLabels"></div>
+      <div class="cityLive" hidden>🐋 大肥鱼</div>
+      <header class="cityHeader"><h2>城市地图</h2><div class="cityStatus" role="status"></div><div class="cityAgenda" hidden></div></header>
+      <div class="cityTools"><button id="cityReset">全图</button><button id="cityClose">返回场景</button></div>
+      <div class="cityDetail" hidden><h3 class="cityPlace"></h3><p class="cityNote"></p><div class="cityActions"><button id="cityEnter">进入这里</button><button id="cityDispatch" hidden>派大肥鱼去这里</button><button id="cityViewScene">看大肥鱼</button></div><p id="cityDispatchFeedback" role="status" hidden></p></div>
+      <div class="cityHelp">拖动平移 · 滚轮缩放 · 右键旋转</div>
+    </section>
+    <div id="cityVisit" hidden><p id="cityVisitName" role="status"></p><button id="visitBack">回到地图</button><button id="visitWatch">看大肥鱼</button></div>
+    <div id="loading">小屋加载中……</div>
+  </div>
+  <aside id="panel">
+    <h3>刚才在想</h3><div id="latest"></div><div id="err"></div>
+    <p><button id="thinkBtn">让她现在想一下</button></p>
+    <h3>身体状态</h3><div id="needs"></div>
+    <details id="neighbors" open hidden><summary>街区日常</summary><ul id="neighborNotes"></ul></details>
+    <h3>今天想过的</h3><ul id="thoughts"></ul>
+    <h3>今天做过的</h3><ul id="log"></ul>
+    <div id="foot"></div>
+    <div id="credit">点「指定位置」后轻点空地，角色会走到标记处。点「恢复自动活动」回到当前作息。左键拖动转视角，右键拖动（手机两指拖动）平移，滚轮或双指缩放。点「看她」或双击她跟随，点「全景」复位。角色模型：<span id="dfyCredit"></span></div>
+  </aside>
+</div>
+<script type="module" src="/r3d/app.js"></script>
+</body></html>
