@@ -1,5 +1,5 @@
 // 3D 大肥鱼：卡通材质 + 描边 + 表情贴图切换 + 程序化姿势和动作
-// 模型：「大肥鱼」by 不想待在银河系（CC0）
+// 大肥鱼模型由不想待在银河系制作，经授权随项目发布。
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 

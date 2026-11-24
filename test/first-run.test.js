@@ -48,6 +48,7 @@ test('fresh install binds an existing workspace and keeps each room state separa
   assert.equal(setup.thoughts, false)
   assert.equal(setup.cat, false)
   assert.equal(setup.catName, '小猫')
+  assert.equal(setup.avatar, 'dfy')
   assert.equal((await post('/api/setup', { ...settings, workspaceId: 'unknown' })).status, 400)
   assert.equal((await post('/api/setup', { ...settings, workspaceId: first.id }, 'http://example.test')).status, 403)
   assert.equal((await post('/api/setup', { ...settings, workspaceId: first.id })).status, 200)
@@ -55,8 +56,12 @@ test('fresh install binds an existing workspace and keeps each room state separa
   assert.equal((await fetch(origin + '/api/think', { method: 'POST' })).status, 403)
   assert.equal((await post('/api/think', {})).status, 200)
   assert.equal((await get('/')).status, 200)
-  assert.equal((await (await get('/api/layout')).json()).avatar, 'none')
-  assert.equal((await get('/r3d/dfy.glb')).status, 404)
+  assert.equal((await (await get('/api/layout')).json()).avatar, 'dfy')
+  for (const filename of ['dfy.glb', 'face_closed.webp', 'face_smile.webp', 'face_talk.webp']) {
+    const response = await get('/r3d/' + filename)
+    assert.equal(response.status, 200)
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()), await readFile(new URL('../lib/models/' + filename, import.meta.url)))
+  }
   const state = await (await get('/api/state')).json()
   assert.equal(state.displayName, '鲸泡')
   assert.equal(state.on, true)

@@ -1,6 +1,6 @@
 {
   "name": "dsh-companion-room",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "main": "lib/index.js",
   "description": "A portable 3D companion room and city map for DeepSeek Harness",

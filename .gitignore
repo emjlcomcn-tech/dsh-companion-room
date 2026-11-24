@@ -10,3 +10,7 @@ qq-bridge-config.json
 *.vrm
 *.glb
 face_*.webp
+!/lib/models/dfy.glb
+!/lib/models/face_closed.webp
+!/lib/models/face_smile.webp
+!/lib/models/face_talk.webp
